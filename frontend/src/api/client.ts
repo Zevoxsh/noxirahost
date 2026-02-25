@@ -52,6 +52,8 @@ export const vmAPI = {
   list: () => api.get('/vms'),
   get: (id: number) => api.get(`/vms/${id}`),
   delete: (id: number) => api.delete(`/vms/${id}`),
+  cancelVM: (id: number) => api.post(`/vms/${id}/cancel`),
+  undoCancelVM: (id: number) => api.post(`/vms/${id}/cancel-undo`),
   getStatus: (id: number) => api.get(`/vms/${id}/status`),
   power: (id: number, action: 'start' | 'stop' | 'reboot' | 'shutdown') =>
     api.post(`/vms/${id}/power`, { action }),

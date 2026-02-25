@@ -176,15 +176,25 @@ class DatabaseService {
   // ─── Virtual Machines ───────────────────────────────────
   async getVMsByUserId(userId) {
     const { rows } = await pool.query(
-      `SELECT vm.*, p.name as plan_name, p.vm_type, n.name as node_name
+      `SELECT vm.*, p.name as plan_name, p.vm_type, n.name as node_name,
+              s.cancel_at_period_end, s.current_period_end AS sub_period_end
        FROM virtual_machines vm
        JOIN plans p ON p.id = vm.plan_id
        JOIN proxmox_nodes n ON n.id = vm.node_id
+       LEFT JOIN subscriptions s ON s.vm_id = vm.id AND s.status != 'canceled'
        WHERE vm.user_id = $1 AND vm.deleted_at IS NULL
        ORDER BY vm.created_at DESC`,
       [userId]
     );
     return rows;
+  }
+
+  async getSubscriptionByVmId(vmId) {
+    const { rows } = await pool.query(
+      `SELECT * FROM subscriptions WHERE vm_id = $1 AND status != 'canceled' ORDER BY created_at DESC LIMIT 1`,
+      [vmId]
+    );
+    return rows[0] ? this._formatSubscription(rows[0]) : null;
   }
 
   async getVMById(id) {

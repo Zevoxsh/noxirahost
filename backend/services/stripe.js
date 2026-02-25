@@ -120,6 +120,22 @@ class StripeService {
   }
 
   /**
+   * Programmer la résiliation à fin de période
+   */
+  async cancelSubscriptionAtPeriodEnd(stripeSubscriptionId) {
+    const stripe = this.getClient();
+    await stripe.subscriptions.update(stripeSubscriptionId, { cancel_at_period_end: true });
+  }
+
+  /**
+   * Annuler une résiliation programmée
+   */
+  async reactivateSubscription(stripeSubscriptionId) {
+    const stripe = this.getClient();
+    await stripe.subscriptions.update(stripeSubscriptionId, { cancel_at_period_end: false });
+  }
+
+  /**
    * Construire et vérifier l'événement webhook
    */
   constructEvent(rawBody, signature) {

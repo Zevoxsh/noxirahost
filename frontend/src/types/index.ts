@@ -54,6 +54,8 @@ export interface VirtualMachine {
   planName?: string;
   nodeName?: string;
   createdAt: string;
+  cancelAtPeriodEnd?: boolean;
+  subPeriodEnd?: string | null;
 }
 
 export interface LiveStatus {

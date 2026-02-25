@@ -6,6 +6,7 @@
 import { database } from '../services/database.js';
 import { proxmoxService } from '../services/proxmox.js';
 import { redisService } from '../services/redis.js';
+import { stripeService } from '../services/stripe.js';
 import { randomUUID } from 'crypto';
 
 export async function vmRoutes(fastify) {
@@ -30,7 +31,10 @@ export async function vmRoutes(fastify) {
       isSuspended: vm.is_suspended,
       planName: vm.plan_name,
       nodeName: vm.node_name,
-      createdAt: vm.created_at
+      createdAt: vm.created_at,
+      // Subscription cancellation info (populated from list query JOIN)
+      cancelAtPeriodEnd: vm.cancel_at_period_end ?? false,
+      subPeriodEnd: vm.sub_period_end ?? null
     };
   };
 
@@ -40,17 +44,71 @@ export async function vmRoutes(fastify) {
     reply.send({ vms: vms.map(formatVm) });
   });
 
-  // GET /api/vms/:id — détail d'une VM
+  // GET /api/vms/:id — détail d'une VM + info abonnement
   fastify.get('/:id', { preHandler: fastify.authenticate }, async (request, reply) => {
     const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
-    reply.send({ vm: formatVm(vm) });
+
+    const sub = await database.getSubscriptionByVmId(vm.id);
+    reply.send({
+      vm: formatVm(vm),
+      subscription: sub ? {
+        id: sub.id,
+        status: sub.status,
+        cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+        currentPeriodEnd: sub.currentPeriodEnd
+      } : null
+    });
   });
 
-  // DELETE /api/vms/:id — supprimer une VM
+  // POST /api/vms/:id/cancel — demander la résiliation à fin de période
+  fastify.post('/:id/cancel', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
+    if (!vm) return reply.code(404).send({ error: 'VM not found' });
+
+    const sub = await database.getSubscriptionByVmId(vm.id);
+    if (!sub) return reply.code(400).send({ error: 'Aucun abonnement actif trouvé pour ce serveur.' });
+    if (sub.cancelAtPeriodEnd) return reply.code(400).send({ error: 'Résiliation déjà demandée.' });
+
+    try {
+      await stripeService.cancelSubscriptionAtPeriodEnd(sub.stripeSubscriptionId);
+      await database.logAudit(request.user.id, 'vm.cancel', 'virtual_machine', vm.id, `Cancellation requested for VM ${vm.name}`, request.ip);
+      reply.send({ success: true, periodEnd: sub.currentPeriodEnd });
+    } catch (error) {
+      reply.code(500).send({ error: 'Erreur lors de la résiliation', message: error.message });
+    }
+  });
+
+  // POST /api/vms/:id/cancel-undo — annuler la résiliation
+  fastify.post('/:id/cancel-undo', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
+    if (!vm) return reply.code(404).send({ error: 'VM not found' });
+
+    const sub = await database.getSubscriptionByVmId(vm.id);
+    if (!sub) return reply.code(400).send({ error: 'Aucun abonnement trouvé.' });
+    if (!sub.cancelAtPeriodEnd) return reply.code(400).send({ error: 'Aucune résiliation en cours.' });
+
+    try {
+      await stripeService.reactivateSubscription(sub.stripeSubscriptionId);
+      await database.logAudit(request.user.id, 'vm.cancel-undo', 'virtual_machine', vm.id, `Cancellation undone for VM ${vm.name}`, request.ip);
+      reply.send({ success: true });
+    } catch (error) {
+      reply.code(500).send({ error: 'Erreur', message: error.message });
+    }
+  });
+
+  // DELETE /api/vms/:id — suppression immédiate (admin ou sans abonnement actif uniquement)
   fastify.delete('/:id', { preHandler: fastify.authenticate }, async (request, reply) => {
     const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
+
+    // Bloquer si abonnement actif non résilié
+    if (request.user.role !== 'admin') {
+      const sub = await database.getSubscriptionByVmId(vm.id);
+      if (sub && !sub.cancelAtPeriodEnd) {
+        return reply.code(403).send({ error: 'Vous devez d\'abord demander la résiliation de l\'abonnement.' });
+      }
+    }
 
     const { vmProvisioner } = await import('../services/vmProvisioner.js');
     await vmProvisioner.destroy(vm);

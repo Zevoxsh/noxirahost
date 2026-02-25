@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Play, Square, RefreshCw, Terminal, Camera,
   Trash2, AlertTriangle, Cpu, HardDrive, Wifi, Clock,
-  Server, Globe, LayoutGrid, Database
+  Server, Globe, LayoutGrid, Database, XCircle, RotateCcw
 } from 'lucide-react';
 import { vmAPI } from '../api/client';
 import type { VirtualMachine, LiveStatus } from '../types';
@@ -40,6 +40,7 @@ export default function VMDetail() {
   const navigate = useNavigate();
 
   const [vm, setVm]             = useState<VirtualMachine | null>(null);
+  const [sub, setSub]           = useState<any>(null);
   const [live, setLive]         = useState<LiveStatus | null>(null);
   const [snaps, setSnaps]       = useState<any[]>([]);
   const [snapName, setSnapName] = useState('');
@@ -48,6 +49,7 @@ export default function VMDetail() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
   const [snapMsg, setSnapMsg]   = useState('');
+  const [cancelMsg, setCancelMsg] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +63,7 @@ export default function VMDetail() {
           : Promise.resolve({ data: { snapshots: [] } })
       ]);
       setVm(vmRes.data.vm);
+      setSub(vmRes.data.subscription ?? null);
       setLive(statusRes.data.status ?? statusRes.data);
       setSnaps((snapRes.data.snapshots ?? []).filter((s: any) => s.name !== 'current'));
     } catch {
@@ -100,6 +103,27 @@ export default function VMDetail() {
     if (!confirm(`Supprimer définitivement "${vm?.name}" ? Cette action est irréversible.`)) return;
     await vmAPI.delete(vmid);
     navigate('/vms');
+  };
+
+  const handleCancel = async () => {
+    if (!confirm(`Demander la résiliation de "${vm?.name}" ?\n\nLe serveur restera actif jusqu'à la fin de la période de facturation, puis sera supprimé définitivement.`)) return;
+    try {
+      await vmAPI.cancelVM(vmid);
+      setCancelMsg('Résiliation programmée. Votre serveur sera supprimé à la fin de la période en cours.');
+      await load();
+    } catch (e: any) {
+      setCancelMsg(e?.response?.data?.error || 'Erreur lors de la demande de résiliation.');
+    }
+  };
+
+  const handleUndoCancel = async () => {
+    try {
+      await vmAPI.undoCancelVM(vmid);
+      setCancelMsg('Résiliation annulée. Votre abonnement continue normalement.');
+      await load();
+    } catch (e: any) {
+      setCancelMsg(e?.response?.data?.error || 'Erreur.');
+    }
   };
 
   if (loading) return (
@@ -334,15 +358,58 @@ export default function VMDetail() {
             Zone dangereuse
           </h2>
         </div>
-        <div className="p-6 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-slate-800">Supprimer ce serveur</p>
-            <p className="text-xs text-slate-500 mt-0.5">Action irréversible — toutes les données seront définitivement perdues</p>
-          </div>
-          <button onClick={handleDelete} className="btn-danger btn-sm flex-shrink-0">
-            <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-            Supprimer
-          </button>
+        <div className="p-6 space-y-4">
+          {cancelMsg && (
+            <div className={`text-sm px-4 py-3 rounded-xl border ${cancelMsg.startsWith('Erreur') || cancelMsg.startsWith('Résiliation déjà') ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+              {cancelMsg}
+            </div>
+          )}
+
+          {/* Cancellation row */}
+          {sub && !sub.cancelAtPeriodEnd && (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Résilier l'abonnement</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Le serveur restera actif jusqu'au {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) : 'fin de période'}, puis sera supprimé
+                </p>
+              </div>
+              <button onClick={handleCancel} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors flex-shrink-0">
+                <XCircle className="w-3.5 h-3.5" strokeWidth={2} />
+                Résilier
+              </button>
+            </div>
+          )}
+
+          {/* Pending cancellation notice */}
+          {sub?.cancelAtPeriodEnd && (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-amber-700">Résiliation programmée</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Ce serveur sera supprimé le {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
+                </p>
+              </div>
+              <button onClick={handleUndoCancel} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors flex-shrink-0">
+                <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} />
+                Annuler la résiliation
+              </button>
+            </div>
+          )}
+
+          {/* Hard delete (no active subscription, or admin) */}
+          {!sub && (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Supprimer ce serveur</p>
+                <p className="text-xs text-slate-500 mt-0.5">Action irréversible — toutes les données seront définitivement perdues</p>
+              </div>
+              <button onClick={handleDelete} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors flex-shrink-0">
+                <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
+                Supprimer
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

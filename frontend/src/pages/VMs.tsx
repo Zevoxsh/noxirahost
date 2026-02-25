@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Server, Play, Square, RefreshCw, Trash2, ShoppingCart, RotateCcw, Terminal } from 'lucide-react';
+import { Server, Play, Square, RefreshCw, ShoppingCart, RotateCcw, Terminal, AlertCircle } from 'lucide-react';
 import { vmAPI } from '../api/client';
 import type { VirtualMachine } from '../types';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -20,11 +20,6 @@ export default function VMs() {
     setActing(vmid);
     try { await fn(); await new Promise(r => setTimeout(r, 1200)); load(); } catch {}
     setActing(null);
-  };
-
-  const handleDelete = async (vm: VirtualMachine) => {
-    if (!confirm(`Supprimer définitivement "${vm.name}" ? Cette action est irréversible.`)) return;
-    action(vm.vmid, () => vmAPI.delete(vm.vmid));
   };
 
   return (
@@ -126,6 +121,14 @@ export default function VMs() {
                     <span className="text-slate-200">·</span>
                     <span>{vm.diskGb} GB SSD</span>
                   </div>
+                  {vm.cancelAtPeriodEnd && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-1">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} />
+                      <span>
+                        Résiliation le {vm.subPeriodEnd ? new Date(vm.subPeriodEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -161,13 +164,6 @@ export default function VMs() {
                   >
                     <Terminal className="w-3.5 h-3.5" strokeWidth={2} />
                   </Link>
-                  <button
-                    onClick={() => handleDelete(vm)}
-                    title="Supprimer"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-                  </button>
                   <Link
                     to={`/vms/${vm.vmid}`}
                     className="ml-auto text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
