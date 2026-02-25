@@ -73,9 +73,9 @@ export default function Billing() {
                       {sub.cancelAtPeriodEnd && <span className="block text-orange-600 font-medium">⚠ Annulation en fin de période</span>}
                     </div>
                   </div>
-                  {sub.priceMonthly && (
+                  {sub.priceMonthly !== undefined && sub.priceMonthly !== null && (
                     <div className="text-right">
-                      <p className="text-xl font-bold text-slate-900">€{sub.priceMonthly.toFixed(2)}</p>
+                      <p className="text-xl font-bold text-slate-900">€{Number(sub.priceMonthly).toFixed(2)}</p>
                       <p className="text-xs text-slate-400">/mois</p>
                     </div>
                   )}
@@ -104,11 +104,12 @@ export default function Billing() {
               <tbody>
                 {invoices.map(inv => {
                   const createdAt = (inv as any).created_at ?? inv.createdAt;
-                  const amountPaid = (inv as any).amount_paid ?? inv.amountPaid ?? 0;
+                  const rawAmountPaid = (inv as any).amount_paid ?? inv.amountPaid ?? 0;
+                  const amountPaid = Number(rawAmountPaid);
                   return (
                   <tr key={inv.id} className="table-row">
                     <td className="table-cell">{createdAt ? new Date(createdAt).toLocaleDateString('fr-FR') : '—'}</td>
-                    <td className="table-cell font-semibold text-slate-900">€{amountPaid.toFixed(2)}</td>
+                    <td className="table-cell font-semibold text-slate-900">€{Number.isFinite(amountPaid) ? amountPaid.toFixed(2) : '0.00'}</td>
                     <td className="table-cell">
                       <span className={inv.status === 'paid' ? 'badge-running' : 'badge-error'}>{inv.status}</span>
                     </td>
