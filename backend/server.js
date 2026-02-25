@@ -27,6 +27,7 @@ import { adminUserRoutes } from './routes/admin/users.js';
 import { adminVmRoutes } from './routes/admin/vms.js';
 import { adminBillingRoutes } from './routes/admin/billing.js';
 import { WebSocketManager } from './services/websocketManager.js';
+import { stripeService } from './services/stripe.js';
 
 // Prefer IPv4 to avoid Stripe timeouts on broken IPv6 routes
 dns.setDefaultResultOrder('ipv4first');
@@ -147,6 +148,30 @@ const start = async () => {
     // 2. Redis
     await redisService.init();
     console.log(`  Redis                              [${redisService.isConnected ? 'OK' : 'WARN - degraded mode'}]`);
+
+    // 2b. Stripe price sync (non-blocking for startup)
+    try {
+      const plans = await database.getAllPlans();
+      let updated = 0;
+      let skipped = 0;
+      let failed = 0;
+
+      for (const plan of plans) {
+        const missing = !plan.stripePriceId || plan.stripePriceId.includes('PLACEHOLDER');
+        if (!missing) { skipped += 1; continue; }
+        try {
+          const stripePriceId = await stripeService.getOrCreatePriceForPlan(plan);
+          await database.updatePlan(plan.id, { stripePriceId });
+          updated += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+
+      console.log(`  Stripe price sync                  [OK] updated=${updated} skipped=${skipped} failed=${failed}`);
+    } catch (err) {
+      console.log(`  Stripe price sync                  [WARN] ${err.message}`);
+    }
 
     // 3. Démarrer Fastify
     await fastify.listen({ port: config.port, host: config.host });
