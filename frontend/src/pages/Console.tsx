@@ -22,7 +22,7 @@ export default function Console() {
         const wsUrl = `${wsProtocol}://${window.location.host}/ws/console?token=${wsToken}`;
 
         // Load noVNC from local dependency (CSP blocks external CDN)
-        const { default: RFB } = await import('@novnc/novnc/core/rfb');
+        const { default: RFB } = await import('@novnc/novnc/core/rfb.js');
 
         if (!containerRef.current) return;
 
