@@ -132,6 +132,26 @@ class ProxmoxService {
     return data.data || [];
   }
 
+  async listUsedVmids(node) {
+    const [vms, containers] = await Promise.all([
+      this.listVMs(node),
+      this.listContainers(node)
+    ]);
+    const used = new Set();
+    for (const v of [...vms, ...containers]) {
+      const vmid = Number(v?.vmid);
+      if (Number.isFinite(vmid)) used.add(vmid);
+    }
+    return used;
+  }
+
+  async getNextAvailableVmid(node, minStart) {
+    const used = await this.listUsedVmids(node);
+    let vmid = Number(minStart) || 200;
+    while (used.has(vmid)) vmid += 1;
+    return { vmid, used };
+  }
+
   async getContainerStatus(node, vmid) {
     const client = await this._client(node);
     const { data } = await client.get(`/nodes/${node.name}/lxc/${vmid}/status/current`);

@@ -19,12 +19,28 @@ class VmProvisioner {
     if (plan.vmType === 'lxc' && !osTemplate) {
       throw new Error('LXC template is required for provisioning');
     }
-    // Générer le prochain VMID disponible (retry en cas de course)
+    const globalStart = parseInt(process.env.PROXMOX_VMID_START || '200', 10);
+    const minStart = Number.isFinite(node.vmid_start) ? node.vmid_start : globalStart;
+
+    // Générer le prochain VMID disponible côté Proxmox (retry en cas de course)
     const hostname = name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
     let dbVm = null;
     let vmid = null;
+    let usedVmids = null;
+    try {
+      const result = await proxmoxService.getNextAvailableVmid(node, minStart);
+      vmid = result.vmid;
+      usedVmids = result.used;
+    } catch {
+      // fallback local si Proxmox est indispo
+      vmid = await database.getNextVmid(node.id);
+    }
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      vmid = vmid === null ? await database.getNextVmid(node.id) : vmid + 1;
+      if (vmid === null) vmid = await database.getNextVmid(node.id);
+      if (usedVmids && usedVmids.has(vmid)) {
+        vmid += 1;
+        continue;
+      }
       try {
         dbVm = await database.createVM({
           userId,
