@@ -138,6 +138,7 @@ export async function vmRoutes(fastify) {
 
     try {
       const vncData = await proxmoxService.getVncProxyForVM(node, vm.vmid, vm.vm_type);
+      const wsAuthHeaders = await proxmoxService.getWsAuthHeaders(node);
       const wsToken = randomUUID();
 
       // Stocker dans Redis (TTL 60s, usage unique)
@@ -149,8 +150,7 @@ export async function vmRoutes(fastify) {
         port: vncData.port,
         vmid: vm.vmid,
         vmType: vm.vm_type,
-        pveTokenId: node.pve_token_id || null,
-        pveTokenSecret: node.pve_token_secret || null
+        wsAuthHeaders
       }, 60);
 
       reply.send({ wsToken, vmName: vm.name });

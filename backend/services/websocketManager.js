@@ -54,13 +54,8 @@ export class WebSocketManager {
 
     this.logger.info(`[WS] Opening noVNC relay to: ${nodeHost}:${nodePort}`);
 
-    // Auth: API token si disponible, sinon PVEAuthCookie (ticket VNC)
-    const authHeaders = tokenData.pveTokenId && tokenData.pveTokenSecret
-      ? { Authorization: `PVEAPIToken=${tokenData.pveTokenId}=${tokenData.pveTokenSecret}` }
-      : { Cookie: `PVEAuthCookie=${ticket}` };
-
-    const pveWs = new WebSocket(pveWsUrl, ['binary'], {
-      headers: authHeaders,
+    const pveWs = new WebSocket(pveWsUrl, {
+      headers: tokenData.wsAuthHeaders || { Cookie: `PVEAuthCookie=${ticket}` },
       rejectUnauthorized: false // Proxmox peut avoir un certificat self-signed
     });
 

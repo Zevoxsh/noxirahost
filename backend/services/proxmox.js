@@ -61,6 +61,19 @@ class ProxmoxService {
     }
   }
 
+  /**
+   * Retourne les headers d'authentification pour une connexion WebSocket vers PVE.
+   * Pour password : PVEAuthCookie avec le ticket de session (≠ ticket VNC).
+   * Pour API token : Authorization header.
+   */
+  async getWsAuthHeaders(node) {
+    if (node.pve_password) {
+      const { ticket } = await this._getTicket(node);
+      return { Cookie: `PVEAuthCookie=${ticket}` };
+    }
+    return { Authorization: `PVEAPIToken=${node.pve_token_id}=${node.pve_token_secret}` };
+  }
+
   // ─── Node ───────────────────────────────────────────────
   async getNodeStatus(node) {
     const client = await this._client(node);
