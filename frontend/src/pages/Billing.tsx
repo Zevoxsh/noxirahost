@@ -102,10 +102,13 @@ export default function Billing() {
                 </tr>
               </thead>
               <tbody>
-                {invoices.map(inv => (
+                {invoices.map(inv => {
+                  const createdAt = (inv as any).created_at ?? inv.createdAt;
+                  const amountPaid = (inv as any).amount_paid ?? inv.amountPaid ?? 0;
+                  return (
                   <tr key={inv.id} className="table-row">
-                    <td className="table-cell">{new Date(inv.createdAt).toLocaleDateString('fr-FR')}</td>
-                    <td className="table-cell font-semibold text-slate-900">€{inv.amountPaid.toFixed(2)}</td>
+                    <td className="table-cell">{createdAt ? new Date(createdAt).toLocaleDateString('fr-FR') : '—'}</td>
+                    <td className="table-cell font-semibold text-slate-900">€{amountPaid.toFixed(2)}</td>
                     <td className="table-cell">
                       <span className={inv.status === 'paid' ? 'badge-running' : 'badge-error'}>{inv.status}</span>
                     </td>
@@ -130,7 +133,8 @@ export default function Billing() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
