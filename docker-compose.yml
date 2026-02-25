@@ -32,8 +32,7 @@ services:
     dns:
       - 1.1.1.1
       - 8.8.8.8
-    networks:
-      - nebula-net
+    network_mode: host
     environment:
       - NODE_ENV=production
       - REDIS_HOST=nebula-hosting-redis
