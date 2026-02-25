@@ -183,8 +183,12 @@ const start = async () => {
             const stripePriceId = await withTimeout(stripeService.getOrCreatePriceForPlan(plan));
             await database.updatePlan(plan.id, { stripePriceId });
             updated += 1;
-          } catch {
+          } catch (err) {
             failed += 1;
+            fastify.log.warn(
+              { planId: plan.id, name: plan.name, err: err.message },
+              'Stripe price sync failed'
+            );
           }
         }
 
