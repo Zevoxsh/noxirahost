@@ -177,6 +177,18 @@ class StripeService {
         await this._handleInvoicePaid(event.data.object);
         break;
 
+      case 'invoice.payment_succeeded':
+        await this._handleInvoicePaid(event.data.object);
+        break;
+
+      case 'invoice.created':
+        await this._handleInvoiceUpdated(event.data.object);
+        break;
+
+      case 'invoice.updated':
+        await this._handleInvoiceUpdated(event.data.object);
+        break;
+
       case 'invoice.payment_failed':
         await this._handleInvoicePaymentFailed(event.data.object);
         break;
@@ -190,6 +202,45 @@ class StripeService {
 
   _toDate(ts) {
     return (typeof ts === 'number' && Number.isFinite(ts)) ? new Date(ts * 1000) : null;
+  }
+
+  async _getInvoiceContext(invoice) {
+    const dbSub = invoice.subscription
+      ? await database.getSubscriptionByStripeId(invoice.subscription)
+      : null;
+
+    const user = dbSub?.user_id
+      ? { id: dbSub.user_id }
+      : (invoice.customer ? await database.getUserByStripeCustomerId(invoice.customer) : null);
+
+    return { dbSub, user };
+  }
+
+  async _upsertInvoiceFromStripe(invoice, statusOverride = null, amountPaidOverride = null) {
+    const { dbSub, user } = await this._getInvoiceContext(invoice);
+    if (!user?.id) {
+      console.warn('[Stripe] Invoice event with no matching user, skipping', invoice.id);
+      return { dbSub, user: null };
+    }
+
+    const amountPaid = amountPaidOverride !== null
+      ? amountPaidOverride
+      : (invoice.amount_paid || 0) / 100;
+
+    await database.upsertInvoice({
+      userId: user.id,
+      subscriptionId: dbSub?.id || null,
+      stripeInvoiceId: invoice.id,
+      amountPaid,
+      currency: invoice.currency,
+      status: statusOverride || invoice.status || 'open',
+      hostedInvoiceUrl: invoice.hosted_invoice_url,
+      invoicePdfUrl: invoice.invoice_pdf,
+      periodStart: this._toDate(invoice.period_start),
+      periodEnd: this._toDate(invoice.period_end)
+    });
+
+    return { dbSub, user };
   }
 
   async _handleCheckoutComplete(session) {
@@ -324,38 +375,15 @@ class StripeService {
     await database.updateSubscription(dbSub.id, { status: 'canceled' });
 
     // Suspendre la VM associée
-    if (dbSub.vm_id) {
+    if (dbSub?.vm_id) {
       const vm = await database.getVMById(dbSub.vm_id);
       if (vm) await vmProvisioner.suspend(vm);
     }
   }
 
   async _handleInvoicePaid(invoice) {
-    const dbSub = invoice.subscription
-      ? await database.getSubscriptionByStripeId(invoice.subscription)
-      : null;
-
-    const user = dbSub?.user_id
-      ? { id: dbSub.user_id }
-      : (invoice.customer ? await database.getUserByStripeCustomerId(invoice.customer) : null);
-
-    if (!user?.id) {
-      console.warn('[Stripe] Invoice paid with no matching user, skipping', invoice.id);
-      return;
-    }
-
-    await database.upsertInvoice({
-      userId: user.id,
-      subscriptionId: dbSub?.id || null,
-      stripeInvoiceId: invoice.id,
-      amountPaid: (invoice.amount_paid || 0) / 100,
-      currency: invoice.currency,
-      status: 'paid',
-      hostedInvoiceUrl: invoice.hosted_invoice_url,
-      invoicePdfUrl: invoice.invoice_pdf,
-      periodStart: this._toDate(invoice.period_start),
-      periodEnd: this._toDate(invoice.period_end)
-    });
+    const { dbSub, user } = await this._upsertInvoiceFromStripe(invoice, 'paid');
+    if (!user?.id) return;
 
     // Reprendre la VM si elle était suspendue
     if (dbSub?.vm_id) {
@@ -363,6 +391,10 @@ class StripeService {
       if (vm?.is_suspended) await vmProvisioner.resume(vm);
     }
 
+  }
+
+  async _handleInvoiceUpdated(invoice) {
+    await this._upsertInvoiceFromStripe(invoice);
   }
 
   async _provisionNewSubscription(stripeSubscriptionId, stripeCustomerId) {
@@ -426,25 +458,8 @@ class StripeService {
   }
 
   async _handleInvoicePaymentFailed(invoice) {
-    const dbSub = invoice.subscription
-      ? await database.getSubscriptionByStripeId(invoice.subscription)
-      : null;
-
-    const user = dbSub?.user_id
-      ? { id: dbSub.user_id }
-      : (invoice.customer ? await database.getUserByStripeCustomerId(invoice.customer) : null);
-
+    const { dbSub, user } = await this._upsertInvoiceFromStripe(invoice, 'open', 0);
     if (!user?.id) return;
-
-    await database.upsertInvoice({
-      userId: user.id,
-      subscriptionId: dbSub?.id || null,
-      stripeInvoiceId: invoice.id,
-      amountPaid: 0,
-      currency: invoice.currency,
-      status: 'open',
-      hostedInvoiceUrl: invoice.hosted_invoice_url
-    });
 
     // Suspendre la VM après échec de paiement
     if (dbSub.vm_id) {

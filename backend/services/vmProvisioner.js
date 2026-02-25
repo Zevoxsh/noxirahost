@@ -27,6 +27,8 @@ class VmProvisioner {
     let dbVm = null;
     let vmid = null;
     let usedVmids = null;
+    let finalName = name;
+    let hostname = name;
     try {
       const result = await proxmoxService.getNextAvailableVmid(node, minStart);
       vmid = result.vmid;
@@ -42,8 +44,8 @@ class VmProvisioner {
         continue;
       }
       // Le VMID est inclus dans le nom pour garantir l'unicité (même plan, même user)
-      const finalName = `${name}-${vmid}`;
-      const hostname = finalName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      finalName = `${name}-${vmid}`;
+      hostname = finalName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
       try {
         dbVm = await database.createVM({
           userId,
@@ -70,7 +72,7 @@ class VmProvisioner {
       // Créer dans Proxmox
       if (plan.vmType === 'kvm') {
         const params = proxmoxService.buildVMCreateParams(
-          vmid, plan, osTemplate, name, node.storage, node.bridge, rootPassword
+          vmid, plan, osTemplate, finalName, node.storage, node.bridge, rootPassword
         );
         await proxmoxService.createVM(node, params);
       } else {
