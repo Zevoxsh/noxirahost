@@ -70,6 +70,13 @@ class StripeService {
   async createCheckoutSession({ user, plan, stripePriceId, vmName, osTemplate }) {
     const stripe = this.getClient();
     const customerId = await this.getOrCreateCustomer(user);
+    const metadata = {
+      userId: String(user.id),
+      planId: String(plan.id),
+      vmType: plan.vm_type,
+      vmName: vmName || `${plan.name} Server`,
+      osTemplate: osTemplate || ''
+    };
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -78,13 +85,8 @@ class StripeService {
       line_items: [{ price: stripePriceId, quantity: 1 }],
       success_url: `${config.frontendUrl}/billing?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${config.frontendUrl}/billing?canceled=1`,
-      metadata: {
-        userId: String(user.id),
-        planId: String(plan.id),
-        vmType: plan.vm_type,
-        vmName: vmName || `${plan.name} Server`,
-        osTemplate: osTemplate || ''
-      }
+      metadata,
+      subscription_data: { metadata }
     });
 
     return session;
@@ -141,6 +143,10 @@ class StripeService {
     switch (event.type) {
       case 'checkout.session.completed':
         await this._handleCheckoutComplete(event.data.object);
+        break;
+
+      case 'customer.subscription.created':
+        await this._handleSubscriptionCreated(event.data.object);
         break;
 
       case 'customer.subscription.updated':
@@ -208,6 +214,52 @@ class StripeService {
       status: stripeSubscription.status,
       currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
       currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000)
+    });
+  }
+
+  async _handleSubscriptionCreated(subscription) {
+    const existing = await database.getSubscriptionByStripeId(subscription.id);
+    if (existing) return;
+
+    const { userId, planId, vmType, vmName, osTemplate } = subscription.metadata || {};
+    if (!userId || !planId) {
+      console.warn('[Stripe] Subscription created without metadata, skipping', subscription.id);
+      return;
+    }
+
+    const plan = await database.getPlanById(parseInt(planId));
+    const user = await database.getUserById(parseInt(userId));
+    if (!plan || !user) return;
+
+    const nodes = await database.getActiveNodes();
+    if (nodes.length === 0) {
+      console.error('[Stripe] No active Proxmox nodes found for provisioning');
+      return;
+    }
+    const node = nodes[0];
+
+    let dbVm = null;
+    try {
+      dbVm = await vmProvisioner.create({
+        userId: user.id,
+        plan,
+        node,
+        name: vmName || `${plan.name.replace(/\s/g, '-')}-${user.id}`,
+        osTemplate: osTemplate || ''
+      });
+    } catch (error) {
+      console.error('[Stripe] VM provisioning failed:', error.message);
+    }
+
+    await database.createSubscription({
+      userId: user.id,
+      vmId: dbVm?.id || null,
+      planId: plan.id,
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId: subscription.customer,
+      status: subscription.status,
+      currentPeriodStart: new Date(subscription.current_period_start * 1000),
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000)
     });
   }
 
