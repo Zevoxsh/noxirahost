@@ -3,6 +3,7 @@
  * Structure basée sur NebulaProxyV3
  */
 
+import dns from 'dns';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
@@ -26,6 +27,9 @@ import { adminUserRoutes } from './routes/admin/users.js';
 import { adminVmRoutes } from './routes/admin/vms.js';
 import { adminBillingRoutes } from './routes/admin/billing.js';
 import { WebSocketManager } from './services/websocketManager.js';
+
+// Prefer IPv4 to avoid Stripe timeouts on broken IPv6 routes
+dns.setDefaultResultOrder('ipv4first');
 
 const fastify = Fastify({
   logger: {
