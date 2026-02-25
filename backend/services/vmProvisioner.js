@@ -19,24 +19,33 @@ class VmProvisioner {
     if (plan.vmType === 'lxc' && !osTemplate) {
       throw new Error('LXC template is required for provisioning');
     }
-    // Générer le prochain VMID disponible
-    const vmid = await database.getNextVmid(node.id);
+    // Générer le prochain VMID disponible (retry en cas de course)
     const hostname = name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-
-    // Créer l'entrée DB en "provisioning"
-    const dbVm = await database.createVM({
-      userId,
-      nodeId: node.id,
-      planId: plan.id,
-      vmid,
-      vmType: plan.vmType,
-      name,
-      hostname,
-      osTemplate,
-      cpuCores: plan.cpuCores,
-      ramMb: plan.ramMb,
-      diskGb: plan.diskGb
-    });
+    let dbVm = null;
+    let vmid = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      vmid = vmid === null ? await database.getNextVmid(node.id) : vmid + 1;
+      try {
+        dbVm = await database.createVM({
+          userId,
+          nodeId: node.id,
+          planId: plan.id,
+          vmid,
+          vmType: plan.vmType,
+          name,
+          hostname,
+          osTemplate,
+          cpuCores: plan.cpuCores,
+          ramMb: plan.ramMb,
+          diskGb: plan.diskGb
+        });
+        break;
+      } catch (error) {
+        if (error?.code === '23505') continue;
+        throw error;
+      }
+    }
+    if (!dbVm) throw new Error('Unable to allocate a unique VMID');
 
     try {
       // Créer dans Proxmox

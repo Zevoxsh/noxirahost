@@ -183,14 +183,6 @@ class StripeService {
     const stripe = this.getClient();
     const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription);
     const existingSub = await database.getSubscriptionByStripeId(stripeSubscription.id);
-    if (existingSub) {
-      await database.updateSubscription(existingSub.id, {
-        status: stripeSubscription.status,
-        currentPeriodStart: this._toDate(stripeSubscription.current_period_start),
-        currentPeriodEnd: this._toDate(stripeSubscription.current_period_end)
-      });
-      return;
-    }
     const plan = await database.getPlanById(parseInt(planId));
     const user = await database.getUserById(parseInt(userId));
     if (!plan || !user) return;
@@ -219,16 +211,25 @@ class StripeService {
     }
 
     // Créer l'abonnement en DB
-    await database.createSubscription({
-      userId: user.id,
-      vmId: dbVm?.id || null,
-      planId: plan.id,
-      stripeSubscriptionId: stripeSubscription.id,
-      stripeCustomerId: session.customer,
-      status: stripeSubscription.status,
-      currentPeriodStart: this._toDate(stripeSubscription.current_period_start),
-      currentPeriodEnd: this._toDate(stripeSubscription.current_period_end)
-    });
+    if (existingSub) {
+      await database.updateSubscription(existingSub.id, {
+        vmId: dbVm?.id || null,
+        status: stripeSubscription.status,
+        currentPeriodStart: this._toDate(stripeSubscription.current_period_start),
+        currentPeriodEnd: this._toDate(stripeSubscription.current_period_end)
+      });
+    } else {
+      await database.createSubscription({
+        userId: user.id,
+        vmId: dbVm?.id || null,
+        planId: plan.id,
+        stripeSubscriptionId: stripeSubscription.id,
+        stripeCustomerId: session.customer,
+        status: stripeSubscription.status,
+        currentPeriodStart: this._toDate(stripeSubscription.current_period_start),
+        currentPeriodEnd: this._toDate(stripeSubscription.current_period_end)
+      });
+    }
   }
 
   async _handleSubscriptionCreated(subscription) {
@@ -245,30 +246,10 @@ class StripeService {
     const user = await database.getUserById(parseInt(userId));
     if (!plan || !user) return;
 
-    const nodes = await database.getActiveNodes();
-    if (nodes.length === 0) {
-      console.error('[Stripe] No active Proxmox nodes found for provisioning');
-      return;
-    }
-    const node = nodes[0];
-
-    let dbVm = null;
-    try {
-      dbVm = await vmProvisioner.create({
-        userId: user.id,
-        plan,
-        node,
-        name: vmName || `${plan.name.replace(/\s/g, '-')}-${user.id}`,
-        osTemplate: osTemplate || ''
-      });
-    } catch (error) {
-      const details = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
-      console.error('[Stripe] VM provisioning failed:', details);
-    }
-
+    // Ne pas provisionner ici pour éviter un double create avec checkout.session.completed.
     await database.createSubscription({
       userId: user.id,
-      vmId: dbVm?.id || null,
+      vmId: null,
       planId: plan.id,
       stripeSubscriptionId: subscription.id,
       stripeCustomerId: subscription.customer,
