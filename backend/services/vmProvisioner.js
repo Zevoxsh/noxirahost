@@ -30,9 +30,9 @@ class VmProvisioner {
       name,
       hostname,
       osTemplate,
-      cpuCores: plan.cpu_cores,
-      ramMb: plan.ram_mb,
-      diskGb: plan.disk_gb
+      cpuCores: plan.cpuCores,
+      ramMb: plan.ramMb,
+      diskGb: plan.diskGb
     });
 
     try {
