@@ -8,6 +8,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +23,16 @@ const pool = new pg.Pool({
 });
 
 const migrationsDir = join(__dirname, '..', 'migrations');
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64);
+  return `scrypt$${salt}$${hash.toString('hex')}`;
+}
+
+function generatePassword() {
+  return crypto.randomBytes(12).toString('base64url');
+}
 
 async function runMigrations() {
   console.log('[DB] Running migrations...');
@@ -57,6 +68,29 @@ async function runMigrations() {
   }
 
   console.log('[DB] Migrations complete.');
+
+  // Ensure a default admin exists
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const adminEmail = process.env.ADMIN_EMAIL || null;
+  const { rows: adminRows } = await pool.query(
+    "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+  );
+
+  if (adminRows.length === 0) {
+    const plainPassword = generatePassword();
+    const passwordHash = hashPassword(plainPassword);
+    await pool.query(
+      `INSERT INTO users (username, display_name, email, role, password_hash, is_active, is_suspended)
+       VALUES ($1, $2, $3, 'admin', $4, TRUE, FALSE)
+       ON CONFLICT (username) DO NOTHING`,
+      [adminUsername, adminUsername, adminEmail, passwordHash]
+    );
+    console.log(`[DB] Default admin created: ${adminUsername}`);
+    console.log(`[DB] Admin password (save this): ${plainPassword}`);
+  } else {
+    console.log('[DB] Admin already exists. Skipping default admin creation.');
+  }
+
   await pool.end();
 }
 
