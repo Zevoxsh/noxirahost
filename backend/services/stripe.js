@@ -177,6 +177,10 @@ class StripeService {
         await this._handleInvoicePaid(event.data.object);
         break;
 
+      case 'invoice_payment.paid':
+        await this._handleInvoicePaid(event.data.object);
+        break;
+
       case 'invoice.payment_succeeded':
         await this._handleInvoicePaid(event.data.object);
         break;
@@ -385,6 +389,15 @@ class StripeService {
     const { dbSub, user } = await this._upsertInvoiceFromStripe(invoice, 'paid');
     if (!user?.id) return;
 
+    // Fallback provisioning if checkout.session.completed was missed
+    if (invoice.subscription) {
+      if (!dbSub) {
+        await this._provisionNewSubscription(invoice.subscription, invoice.customer);
+      } else if (!dbSub.vm_id) {
+        await this._provisionMissingVmForExistingSubscription(dbSub, invoice.subscription);
+      }
+    }
+
     // Reprendre la VM si elle était suspendue
     if (dbSub?.vm_id) {
       const vm = await database.getVMById(dbSub.vm_id);
@@ -395,6 +408,59 @@ class StripeService {
 
   async _handleInvoiceUpdated(invoice) {
     await this._upsertInvoiceFromStripe(invoice);
+  }
+
+  async _provisionMissingVmForExistingSubscription(dbSub, stripeSubscriptionId) {
+    const stripe = this.getClient();
+    const stripeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    const { userId, planId, rootPassword, osTemplate } = stripeSubscription.metadata || {};
+
+    if (!userId || !planId) {
+      console.error('[Stripe] Missing metadata on subscription for provisioning', stripeSubscriptionId);
+      return;
+    }
+
+    const plan = await database.getPlanById(parseInt(planId));
+    const user = await database.getUserById(parseInt(userId));
+    if (!plan || !user) {
+      console.error('[Stripe] Plan/user not found for provisioning', { planId, userId });
+      return;
+    }
+
+    const nodes = await database.getActiveNodes();
+    if (nodes.length === 0) {
+      console.error('[Stripe] No active Proxmox nodes found for provisioning');
+      return;
+    }
+    const node = nodes[0];
+
+    let dbVm = null;
+    try {
+      dbVm = await vmProvisioner.create({
+        userId: user.id,
+        plan,
+        node,
+        name: `${plan.name.replace(/\s/g, '-').toLowerCase()}-${user.id}`,
+        rootPassword: rootPassword || '',
+        osTemplate: osTemplate || ''
+      });
+    } catch (error) {
+      const details = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
+      console.error('[Stripe] VM provisioning failed (invoice.paid fallback):', details);
+      return;
+    }
+
+    await database.updateSubscription(dbSub.id, {
+      vmId: dbVm?.id || null,
+      status: stripeSubscription.status,
+      currentPeriodStart: this._toDate(stripeSubscription.current_period_start),
+      currentPeriodEnd: this._toDate(stripeSubscription.current_period_end)
+    });
+
+    console.log('[Stripe] VM provisioned via invoice.paid fallback (existing subscription)', {
+      subscriptionId: dbSub.id,
+      vmId: dbVm?.id
+    });
   }
 
   async _provisionNewSubscription(stripeSubscriptionId, stripeCustomerId) {
