@@ -149,30 +149,6 @@ const start = async () => {
     await redisService.init();
     console.log(`  Redis                              [${redisService.isConnected ? 'OK' : 'WARN - degraded mode'}]`);
 
-    // 2b. Stripe price sync (non-blocking for startup)
-    try {
-      const plans = await database.getAllPlans();
-      let updated = 0;
-      let skipped = 0;
-      let failed = 0;
-
-      for (const plan of plans) {
-        const missing = !plan.stripePriceId || plan.stripePriceId.includes('PLACEHOLDER');
-        if (!missing) { skipped += 1; continue; }
-        try {
-          const stripePriceId = await stripeService.getOrCreatePriceForPlan(plan);
-          await database.updatePlan(plan.id, { stripePriceId });
-          updated += 1;
-        } catch {
-          failed += 1;
-        }
-      }
-
-      console.log(`  Stripe price sync                  [OK] updated=${updated} skipped=${skipped} failed=${failed}`);
-    } catch (err) {
-      console.log(`  Stripe price sync                  [WARN] ${err.message}`);
-    }
-
     // 3. Démarrer Fastify
     await fastify.listen({ port: config.port, host: config.host });
     console.log(`  API Listener                       [OK] ${config.host}:${config.port}`);
@@ -185,6 +161,38 @@ const start = async () => {
     console.log('---------------------------------------------------');
     console.log(`  Startup complete in ${Date.now() - t}ms`);
     console.log('===================================================\n');
+
+    // 5. Stripe price sync (async, non-blocking)
+    setTimeout(async () => {
+      const timeoutMs = 8000;
+      const withTimeout = (p) => Promise.race([
+        p,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Stripe sync timeout')), timeoutMs))
+      ]);
+
+      try {
+        const plans = await database.getAllPlans();
+        let updated = 0;
+        let skipped = 0;
+        let failed = 0;
+
+        for (const plan of plans) {
+          const missing = !plan.stripePriceId || plan.stripePriceId.includes('PLACEHOLDER');
+          if (!missing) { skipped += 1; continue; }
+          try {
+            const stripePriceId = await withTimeout(stripeService.getOrCreatePriceForPlan(plan));
+            await database.updatePlan(plan.id, { stripePriceId });
+            updated += 1;
+          } catch {
+            failed += 1;
+          }
+        }
+
+        fastify.log.info({ updated, skipped, failed }, 'Stripe price sync done');
+      } catch (err) {
+        fastify.log.warn({ err: err.message }, 'Stripe price sync skipped');
+      }
+    }, 0);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
