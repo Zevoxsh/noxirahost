@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Server, Play, Square, RefreshCw, Trash2, ShoppingCart, RotateCcw } from 'lucide-react';
+import { Server, Play, Square, RefreshCw, Trash2, ShoppingCart, RotateCcw, Terminal } from 'lucide-react';
 import { vmAPI } from '../api/client';
 import type { VirtualMachine } from '../types';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -16,15 +16,15 @@ export default function VMs() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const action = async (id: number, fn: () => Promise<any>) => {
-    setActing(id);
+  const action = async (vmid: number, fn: () => Promise<any>) => {
+    setActing(vmid);
     try { await fn(); await new Promise(r => setTimeout(r, 1200)); load(); } catch {}
     setActing(null);
   };
 
   const handleDelete = async (vm: VirtualMachine) => {
     if (!confirm(`Supprimer définitivement "${vm.name}" ? Cette action est irréversible.`)) return;
-    action(vm.id, () => vmAPI.delete(vm.id));
+    action(vm.vmid, () => vmAPI.delete(vm.vmid));
   };
 
   return (
@@ -32,7 +32,7 @@ export default function VMs() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Mes serveurs</h1>
-          <p className="page-subtitle">{vms.length} serveur{vms.length !== 1 ? 's' : ''} configuré{vms.length !== 1 ? 's' : ''}</p>
+          <p className="page-subtitle">{vms.length} serveur{vms.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={load} className="btn-secondary btn-sm">
@@ -47,7 +47,9 @@ export default function VMs() {
       </div>
 
       {loading ? (
-        <div className="card flex items-center justify-center py-16"><div className="spinner" /></div>
+        <div className="flex items-center justify-center py-24">
+          <div className="spinner w-8 h-8" />
+        </div>
       ) : vms.length === 0 ? (
         <div className="card">
           <div className="empty-state">
@@ -61,74 +63,121 @@ export default function VMs() {
           </div>
         </div>
       ) : (
-        <div className="table-wrap">
-          <table className="w-full">
-            <thead>
-              <tr>
-                {['Serveur', 'Type', 'Statut', 'Adresse IP', 'Ressources', 'Nœud', 'Actions'].map(h => (
-                  <th key={h} className="table-header">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {vms.map(vm => {
-                const vmType = (vm as any).vmType ?? (vm as any).vm_type ?? 'kvm';
-                return (
-                <tr key={vm.id} className="table-row">
-                  <td className="table-cell">
-                    <Link to={`/vms/${vm.id}`} className="font-semibold text-slate-900 hover:text-brand-600 transition-colors">
-                      {vm.name}
-                    </Link>
-                    <div className="text-xs text-slate-400 font-mono">VMID {vm.vmid}</div>
-                  </td>
-                  <td className="table-cell">
-                    <span className={`badge border ${vmType === 'kvm' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
-                      {String(vmType).toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="table-cell">
-                    {acting === vm.id ? (
-                      <span className="badge-provisioning">
-                        <span className="dot-amber animate-pulse" />
-                        En cours…
-                      </span>
-                    ) : <StatusBadge status={vm.status} />}
-                  </td>
-                  <td className="table-cell font-mono text-xs text-slate-600">{vm.ipAddress || '—'}</td>
-                  <td className="table-cell text-xs text-slate-600">
-                    {vm.cpuCores} vCPU · {vm.ramMb >= 1024 ? `${vm.ramMb/1024} GB` : `${vm.ramMb} MB`} · {vm.diskGb} GB
-                  </td>
-                  <td className="table-cell text-xs text-slate-500">{vm.nodeName || `#${vm.nodeId}`}</td>
-                  <td className="table-cell">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => action(vm.id, () => vmAPI.power(vm.id, 'start'))}
-                        disabled={vm.status === 'running' || acting === vm.id}
-                        className="btn-icon btn-sm" title="Démarrer">
-                        <Play className="w-3.5 h-3.5" strokeWidth={2} />
-                      </button>
-                      <button onClick={() => action(vm.id, () => vmAPI.power(vm.id, 'stop'))}
-                        disabled={vm.status !== 'running' || acting === vm.id}
-                        className="btn-icon btn-sm" title="Arrêter">
-                        <Square className="w-3.5 h-3.5" strokeWidth={2} />
-                      </button>
-                      <button onClick={() => action(vm.id, () => vmAPI.power(vm.id, 'reboot'))}
-                        disabled={vm.status !== 'running' || acting === vm.id}
-                        className="btn-icon btn-sm" title="Redémarrer">
-                        <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
-                      </button>
-                      <Link to={`/vms/${vm.id}`} className="btn-ghost btn-sm text-brand-600 hover:text-brand-700 hover:bg-brand-50 ml-1">
-                        Gérer
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {vms.map(vm => {
+            const vmType  = (vm as any).vmType ?? (vm as any).vm_type ?? 'kvm';
+            const isKvm   = vmType === 'kvm';
+            const isAct   = acting === vm.vmid;
+            const running = vm.status === 'running';
+
+            return (
+              <div key={vm.vmid} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col overflow-hidden">
+
+                {/* Colored top strip */}
+                <div className={`h-1 w-full ${isKvm ? 'bg-indigo-400' : 'bg-teal-400'}`} />
+
+                {/* Header */}
+                <div className="p-5 flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isKvm ? 'bg-indigo-50' : 'bg-teal-50'}`}>
+                    <Server className={`w-5 h-5 ${isKvm ? 'text-indigo-500' : 'text-teal-500'}`} strokeWidth={1.75} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <Link
+                        to={`/vms/${vm.vmid}`}
+                        className="font-semibold text-slate-900 hover:text-brand-600 transition-colors leading-tight truncate"
+                      >
+                        {vm.name}
                       </Link>
-                      <button onClick={() => handleDelete(vm)} className="btn-icon btn-sm text-slate-400 hover:text-red-500 hover:bg-red-50" title="Supprimer">
-                        <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-                      </button>
+                      {isAct ? (
+                        <span className="flex items-center gap-1 text-xs text-amber-600 font-medium flex-shrink-0 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          En cours…
+                        </span>
+                      ) : (
+                        <div className="flex-shrink-0 mt-0.5">
+                          <StatusBadge status={vm.status} />
+                        </div>
+                      )}
                     </div>
-                  </td>
-                </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isKvm ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                        {String(vmType).toUpperCase()}
+                      </span>
+                      <span className="text-xs text-slate-400 font-mono"># {vm.vmid}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="px-5 pb-4 flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs py-1 border-b border-slate-50">
+                    <span className="text-slate-400">Adresse IP</span>
+                    <span className="font-mono text-slate-700">{(vm as any).ipAddress || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs py-1 border-b border-slate-50">
+                    <span className="text-slate-400">Nœud</span>
+                    <span className="text-slate-600">{(vm as any).nodeName || '—'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 py-1">
+                    <span>{vm.cpuCores} vCPU</span>
+                    <span className="text-slate-200">·</span>
+                    <span>{vm.ramMb >= 1024 ? `${vm.ramMb / 1024} GB` : `${vm.ramMb} MB`} RAM</span>
+                    <span className="text-slate-200">·</span>
+                    <span>{vm.diskGb} GB SSD</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center gap-1">
+                  <button
+                    onClick={() => action(vm.vmid, () => vmAPI.power(vm.vmid, 'start'))}
+                    disabled={running || isAct}
+                    title="Démarrer"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Play className="w-3.5 h-3.5" strokeWidth={2} />
+                  </button>
+                  <button
+                    onClick={() => action(vm.vmid, () => vmAPI.power(vm.vmid, 'stop'))}
+                    disabled={!running || isAct}
+                    title="Arrêter"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Square className="w-3.5 h-3.5" strokeWidth={2} />
+                  </button>
+                  <button
+                    onClick={() => action(vm.vmid, () => vmAPI.power(vm.vmid, 'reboot'))}
+                    disabled={!running || isAct}
+                    title="Redémarrer"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
+                  </button>
+                  <Link
+                    to={`/vms/${vm.vmid}/console`}
+                    title="Console"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                  >
+                    <Terminal className="w-3.5 h-3.5" strokeWidth={2} />
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(vm)}
+                    title="Supprimer"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
+                  </button>
+                  <Link
+                    to={`/vms/${vm.vmid}`}
+                    className="ml-auto text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Gérer →
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

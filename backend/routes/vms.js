@@ -42,14 +42,14 @@ export async function vmRoutes(fastify) {
 
   // GET /api/vms/:id — détail d'une VM
   fastify.get('/:id', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
     reply.send({ vm: formatVm(vm) });
   });
 
   // DELETE /api/vms/:id — supprimer une VM
   fastify.delete('/:id', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
 
     const { vmProvisioner } = await import('../services/vmProvisioner.js');
@@ -61,7 +61,7 @@ export async function vmRoutes(fastify) {
 
   // GET /api/vms/:id/status — status live depuis Proxmox
   fastify.get('/:id/status', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
 
     try {
@@ -94,7 +94,7 @@ export async function vmRoutes(fastify) {
       return reply.code(400).send({ error: 'Invalid action', message: `Action must be one of: ${validActions.join(', ')}` });
     }
 
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
     if (vm.is_suspended) return reply.code(403).send({ error: 'VM is suspended', message: 'Please renew your subscription' });
 
@@ -123,7 +123,7 @@ export async function vmRoutes(fastify) {
 
   // POST /api/vms/:id/console — générer un token noVNC
   fastify.post('/:id/console', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
     if (vm.status !== 'running') return reply.code(400).send({ error: 'VM must be running to open console' });
 
@@ -161,7 +161,7 @@ export async function vmRoutes(fastify) {
 
   // GET /api/vms/:id/snapshots
   fastify.get('/:id/snapshots', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
     if (vm.vm_type !== 'kvm') return reply.code(400).send({ error: 'Snapshots only available for KVM VMs' });
 
@@ -187,7 +187,7 @@ export async function vmRoutes(fastify) {
     const { name, description } = request.body || {};
     if (!name) return reply.code(400).send({ error: 'Snapshot name is required' });
 
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
     if (vm.vm_type !== 'kvm') return reply.code(400).send({ error: 'Snapshots only available for KVM VMs' });
 
@@ -210,7 +210,7 @@ export async function vmRoutes(fastify) {
 
   // DELETE /api/vms/:id/snapshots/:snapname
   fastify.delete('/:id/snapshots/:snapname', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
+    const vm = await database.getVMByVmidAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
 
     const node = {

@@ -215,6 +215,20 @@ class DatabaseService {
     return rows[0] || null;
   }
 
+  async getVMByVmidAndUser(vmid, userId) {
+    const { rows } = await pool.query(
+      `SELECT vm.*, p.name as plan_name, n.name as node_name, n.host as node_host,
+              n.pve_user, n.pve_password, n.pve_token_id, n.pve_token_secret,
+              n.port as node_port, n.verify_ssl, n.storage as node_storage, n.bridge as node_bridge
+       FROM virtual_machines vm
+       JOIN plans p ON p.id = vm.plan_id
+       JOIN proxmox_nodes n ON n.id = vm.node_id
+       WHERE vm.vmid = $1 AND vm.user_id = $2 AND vm.deleted_at IS NULL`,
+      [vmid, userId]
+    );
+    return rows[0] || null;
+  }
+
   async getAllVMs() {
     const { rows } = await pool.query(
       `SELECT vm.*, u.username, u.display_name, p.name as plan_name, n.name as node_name

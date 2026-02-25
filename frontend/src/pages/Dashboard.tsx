@@ -80,10 +80,10 @@ export default function Dashboard() {
               {vms.map(vm => {
                 const vmType = (vm as any).vmType ?? (vm as any).vm_type ?? 'kvm';
                 return (
-                <tr key={vm.id} className="table-row">
+                <tr key={vm.vmid} className="table-row">
                   <td className="table-cell">
                     <div className="font-semibold text-slate-900">{vm.name}</div>
-                    <div className="text-xs text-slate-400">{vm.nodeName || `Node #${vm.nodeId}`}</div>
+                    <div className="text-xs text-slate-400 font-mono">#{vm.vmid} · {(vm as any).nodeName || `Node #${(vm as any).nodeId}`}</div>
                   </td>
                   <td className="table-cell">
                     <span className={`badge border ${vmType === 'kvm' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
@@ -92,26 +92,26 @@ export default function Dashboard() {
                   </td>
                   <td className="table-cell"><StatusBadge status={vm.status} /></td>
                   <td className="table-cell">
-                    <span className="font-mono text-xs text-slate-600">{vm.ipAddress || '—'}</span>
+                    <span className="font-mono text-xs text-slate-600">{(vm as any).ipAddress || '—'}</span>
                   </td>
                   <td className="table-cell">
                     <span className="text-xs text-slate-600">{vm.cpuCores} vCPU · {vm.ramMb >= 1024 ? `${vm.ramMb/1024}GB` : `${vm.ramMb}MB`} · {vm.diskGb}GB</span>
                   </td>
                   <td className="table-cell">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => vmAPI.power(vm.id, 'start')} disabled={vm.status === 'running'}
+                      <button onClick={() => vmAPI.power(vm.vmid, 'start')} disabled={vm.status === 'running'}
                         className="btn-icon btn-sm" title="Démarrer">
                         <Play className="w-3.5 h-3.5" strokeWidth={2} />
                       </button>
-                      <button onClick={() => vmAPI.power(vm.id, 'stop')} disabled={vm.status !== 'running'}
+                      <button onClick={() => vmAPI.power(vm.vmid, 'stop')} disabled={vm.status !== 'running'}
                         className="btn-icon btn-sm" title="Arrêter">
                         <Square className="w-3.5 h-3.5" strokeWidth={2} />
                       </button>
-                      <button onClick={() => vmAPI.power(vm.id, 'reboot')} disabled={vm.status !== 'running'}
+                      <button onClick={() => vmAPI.power(vm.vmid, 'reboot')} disabled={vm.status !== 'running'}
                         className="btn-icon btn-sm" title="Redémarrer">
                         <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
                       </button>
-                      <Link to={`/vms/${vm.id}`} className="btn-ghost btn-sm ml-1 text-brand-600 hover:text-brand-700 hover:bg-brand-50">
+                      <Link to={`/vms/${vm.vmid}`} className="btn-ghost btn-sm ml-1 text-brand-600 hover:text-brand-700 hover:bg-brand-50">
                         Gérer
                       </Link>
                     </div>
