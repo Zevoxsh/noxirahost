@@ -9,17 +9,42 @@ import { redisService } from '../services/redis.js';
 import { randomUUID } from 'crypto';
 
 export async function vmRoutes(fastify) {
+  const formatVm = (vm) => {
+    if (!vm) return vm;
+    return {
+      id: vm.id,
+      userId: vm.user_id,
+      nodeId: vm.node_id,
+      planId: vm.plan_id,
+      vmid: vm.vmid,
+      vmType: vm.vm_type,
+      name: vm.name,
+      hostname: vm.hostname,
+      status: vm.status,
+      osTemplate: vm.os_template,
+      cpuCores: vm.cpu_cores,
+      ramMb: vm.ram_mb,
+      diskGb: vm.disk_gb,
+      ipAddress: vm.ip_address,
+      ipv6Address: vm.ipv6_address,
+      isSuspended: vm.is_suspended,
+      planName: vm.plan_name,
+      nodeName: vm.node_name,
+      createdAt: vm.created_at
+    };
+  };
+
   // GET /api/vms — liste des VMs de l'utilisateur
   fastify.get('/', { preHandler: fastify.authenticate }, async (request, reply) => {
     const vms = await database.getVMsByUserId(request.user.id);
-    reply.send({ vms });
+    reply.send({ vms: vms.map(formatVm) });
   });
 
   // GET /api/vms/:id — détail d'une VM
   fastify.get('/:id', { preHandler: fastify.authenticate }, async (request, reply) => {
     const vm = await database.getVMByIdAndUser(parseInt(request.params.id), request.user.id);
     if (!vm) return reply.code(404).send({ error: 'VM not found' });
-    reply.send({ vm });
+    reply.send({ vm: formatVm(vm) });
   });
 
   // DELETE /api/vms/:id — supprimer une VM

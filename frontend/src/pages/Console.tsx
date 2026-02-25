@@ -21,8 +21,8 @@ export default function Console() {
         const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const wsUrl = `${wsProtocol}://${window.location.host}/ws/console?token=${wsToken}`;
 
-        // Load noVNC from CDN — @vite-ignore prevents Rollup from trying to bundle this
-        const { default: RFB } = await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/core/rfb.js');
+        // Load noVNC from local dependency (CSP blocks external CDN)
+        const { default: RFB } = await import('@novnc/novnc/core/rfb');
 
         if (!containerRef.current) return;
 

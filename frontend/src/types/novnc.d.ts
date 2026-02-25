@@ -1,4 +1,4 @@
-declare module 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/core/rfb.js' {
+declare module '@novnc/novnc/core/rfb' {
   export default class RFB extends EventTarget {
     constructor(target: HTMLElement, url: string, options?: {
       shared?: boolean;
