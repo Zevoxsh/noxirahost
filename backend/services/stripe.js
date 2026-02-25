@@ -178,14 +178,30 @@ class StripeService {
 
   async _handleCheckoutComplete(session) {
     const { userId, planId, vmType, vmName, osTemplate } = session.metadata || {};
-    if (!userId || !planId) return;
+    if (!userId || !planId) {
+      console.error('[Stripe] Checkout completed without required metadata', {
+        sessionId: session.id,
+        userId,
+        planId
+      });
+      return;
+    }
 
     const stripe = this.getClient();
     const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription);
     const existingSub = await database.getSubscriptionByStripeId(stripeSubscription.id);
     const plan = await database.getPlanById(parseInt(planId));
     const user = await database.getUserById(parseInt(userId));
-    if (!plan || !user) return;
+    if (!plan || !user) {
+      console.error('[Stripe] Checkout completed but plan/user not found', {
+        sessionId: session.id,
+        planId,
+        userId,
+        planFound: !!plan,
+        userFound: !!user
+      });
+      return;
+    }
 
     // Choisir le noeud Proxmox avec le moins de VMs
     const nodes = await database.getActiveNodes();
@@ -244,7 +260,16 @@ class StripeService {
 
     const plan = await database.getPlanById(parseInt(planId));
     const user = await database.getUserById(parseInt(userId));
-    if (!plan || !user) return;
+    if (!plan || !user) {
+      console.error('[Stripe] Subscription created but plan/user not found', {
+        subscriptionId: subscription.id,
+        planId,
+        userId,
+        planFound: !!plan,
+        userFound: !!user
+      });
+      return;
+    }
 
     // Ne pas provisionner ici pour éviter un double create avec checkout.session.completed.
     await database.createSubscription({
