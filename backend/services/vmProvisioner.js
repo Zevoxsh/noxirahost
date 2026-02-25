@@ -58,7 +58,7 @@ class VmProvisioner {
         });
         break;
       } catch (error) {
-        if (error?.code === '23505') continue;
+        if (error?.code === '23505') { vmid += 1; continue; }
         throw error;
       }
     }

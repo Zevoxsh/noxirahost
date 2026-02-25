@@ -363,11 +363,6 @@ class StripeService {
       if (vm?.is_suspended) await vmProvisioner.resume(vm);
     }
 
-    // Fallback provisionnement : checkout.session.completed n'est pas toujours reçu
-    if (!dbSub && invoice.billing_reason === 'subscription_create' && invoice.subscription) {
-      console.log('[Stripe] invoice.paid fallback: provisionnement pour nouvelle souscription', invoice.subscription);
-      await this._provisionNewSubscription(invoice.subscription, invoice.customer);
-    }
   }
 
   async _provisionNewSubscription(stripeSubscriptionId, stripeCustomerId) {
