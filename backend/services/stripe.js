@@ -73,7 +73,7 @@ class StripeService {
     const metadata = {
       userId: String(user.id),
       planId: String(plan.id),
-      vmType: plan.vm_type,
+      vmType: plan.vmType,
       vmName: vmName || `${plan.name} Server`,
       osTemplate: osTemplate || ''
     };

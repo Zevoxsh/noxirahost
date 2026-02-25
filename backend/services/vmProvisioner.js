@@ -26,7 +26,7 @@ class VmProvisioner {
       nodeId: node.id,
       planId: plan.id,
       vmid,
-      vmType: plan.vm_type,
+      vmType: plan.vmType,
       name,
       hostname,
       osTemplate,
@@ -37,7 +37,7 @@ class VmProvisioner {
 
     try {
       // Créer dans Proxmox
-      if (plan.vm_type === 'kvm') {
+      if (plan.vmType === 'kvm') {
         const params = proxmoxService.buildVMCreateParams(
           vmid, plan, osTemplate, name, node.storage, node.bridge
         );
