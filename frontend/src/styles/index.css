@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html { font-size: 14px; }
+  body {
+    @apply bg-slate-100 text-slate-800;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  * { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+  *::-webkit-scrollbar { width: 5px; height: 5px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+  *::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+}
+
+@layer components {
+
+  /* ── Sidebar nav links ──────────────────────────── */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+           transition-colors duration-100 w-full text-slate-600;
+  }
+  .nav-link:hover {
+    @apply bg-slate-100 text-slate-900;
+  }
+  .nav-link-active {
+    @apply flex items-center gap-3 px-3 py-2 text-sm font-semibold w-full rounded-lg
+           bg-brand-50 text-brand-700;
+    border-left: 3px solid #2563eb;
+    padding-left: 10px;
+  }
+  .nav-section-label {
+    @apply block px-3 mb-1 mt-4 text-[10px] font-bold uppercase text-slate-400;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Buttons ────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold
+           transition-all duration-150 cursor-pointer select-none
+           focus:outline-none disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white;
+    box-shadow: 0 1px 3px rgba(37,99,235,0.3);
+  }
+  .btn-secondary {
+    @apply btn px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .btn-ghost   { @apply btn px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+  .btn-danger  { @apply btn px-4 py-2 bg-red-600 hover:bg-red-700 text-white; }
+  .btn-success { @apply btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white; }
+  .btn-sm      { @apply !px-3 !py-1.5 !text-xs; }
+  .btn-icon    { @apply btn p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-lg; }
+
+  /* ── Inputs ─────────────────────────────────────── */
+  .input-field {
+    @apply w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm
+           text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2
+           focus:ring-brand-500 focus:border-transparent transition-shadow;
+  }
+  .input-label { @apply block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide; }
+
+  /* ── Cards ──────────────────────────────────────── */
+  .card        { @apply bg-white rounded-xl border border-slate-200 shadow-sm; }
+  .card-header { @apply px-5 py-4 border-b border-slate-100 flex items-center justify-between; }
+  .card-body   { @apply p-5; }
+
+  /* ── Tables ─────────────────────────────────────── */
+  .table-wrap   { @apply card overflow-hidden; }
+  .table-header { @apply text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3 text-left bg-slate-50 border-b border-slate-100; }
+  .table-row    { @apply border-b border-slate-100 hover:bg-slate-50/70 transition-colors; }
+  .table-row:last-child { border-bottom: none; }
+  .table-cell   { @apply px-4 py-3 text-sm text-slate-700; }
+
+  /* ── Badges ─────────────────────────────────────── */
+  .badge              { @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+  .badge-running      { @apply badge bg-emerald-50 text-emerald-700 border border-emerald-200; }
+  .badge-stopped      { @apply badge bg-slate-100  text-slate-600   border border-slate-200; }
+  .badge-error        { @apply badge bg-red-50     text-red-700     border border-red-200; }
+  .badge-provisioning { @apply badge bg-amber-50   text-amber-700   border border-amber-200; }
+  .badge-suspended    { @apply badge bg-orange-50  text-orange-700  border border-orange-200; }
+  .badge-deleting     { @apply badge bg-red-50     text-red-600     border border-red-200; }
+  .badge-active       { @apply badge bg-brand-50   text-brand-700   border border-brand-200; }
+  .badge-inactive     { @apply badge bg-slate-100  text-slate-500   border border-slate-200; }
+
+  /* ── Status dots ────────────────────────────────── */
+  .dot        { @apply w-2 h-2 rounded-full flex-shrink-0 inline-block; }
+  .dot-green  { @apply dot bg-emerald-500; }
+  .dot-gray   { @apply dot bg-slate-400; }
+  .dot-red    { @apply dot bg-red-500; }
+  .dot-amber  { @apply dot bg-amber-500; }
+  .dot-orange { @apply dot bg-orange-500; }
+
+  /* ── Page layout ────────────────────────────────── */
+  .page-container { @apply p-6 max-w-screen-xl mx-auto; }
+  .page-header    { @apply flex items-center justify-between mb-6 flex-wrap gap-3; }
+  .page-title     { @apply text-xl font-bold text-slate-900; }
+  .page-subtitle  { @apply text-sm text-slate-500 mt-0.5; }
+
+  /* ── Alerts ─────────────────────────────────────── */
+  .alert-success { @apply bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-3 text-sm; }
+  .alert-error   { @apply bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm; }
+  .alert-info    { @apply bg-brand-50 border border-brand-200 text-brand-800 rounded-lg px-4 py-3 text-sm; }
+  .alert-warning { @apply bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm; }
+
+  /* ── Progress ───────────────────────────────────── */
+  .progress-track { @apply h-1.5 bg-slate-200 rounded-full overflow-hidden; }
+  .progress-fill  { @apply h-full rounded-full transition-all duration-500; }
+
+  /* ── Empty state ────────────────────────────────── */
+  .empty-state       { @apply flex flex-col items-center justify-center py-16 text-center; }
+  .empty-state-icon  { @apply w-12 h-12 text-slate-300 mb-4; }
+  .empty-state-title { @apply text-base font-semibold text-slate-500 mb-1; }
+  .empty-state-desc  { @apply text-sm text-slate-400; }
+
+  /* ── Spinner ────────────────────────────────────── */
+  .spinner { @apply w-5 h-5 border-2 border-slate-200 border-t-brand-600 rounded-full animate-spin; }
+
+  /* ── Stat card ──────────────────────────────────── */
+  .stat-card { @apply bg-white rounded-xl border border-slate-200 shadow-sm p-5; }
+}

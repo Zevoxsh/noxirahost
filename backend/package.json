@@ -1,0 +1,28 @@
+{
+  "name": "nebula-hosting-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "init:db": "node scripts/init-db.js",
+    "db:backup": "pg_dump -h localhost -U nebula nebula_hosting > backup-$(date +%Y%m%d-%H%M%S).sql"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^9.3.1",
+    "@fastify/cors": "^8.5.0",
+    "@fastify/jwt": "^7.2.4",
+    "@fastify/rate-limit": "^9.1.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.3.1",
+    "fastify": "^4.25.2",
+    "ioredis": "^5.8.2",
+    "nodemailer": "^6.10.1",
+    "pg": "^8.16.3",
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.3.1",
+    "stripe": "^14.0.0",
+    "uuid": "^9.0.0",
+    "ws": "^8.18.0"
+  }
+}
