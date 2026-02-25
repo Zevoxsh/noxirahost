@@ -11,6 +11,32 @@ export async function adminPlanRoutes(fastify) {
     reply.send({ plans });
   });
 
+  // POST /api/admin/plans/sync-stripe — créer les Price Stripe manquants
+  fastify.post('/sync-stripe', { preHandler: fastify.requireAdmin }, async (request, reply) => {
+    const plans = await database.getAllPlans();
+    const updated = [];
+    const skipped = [];
+    const failed = [];
+
+    for (const plan of plans) {
+      const missing = !plan.stripePriceId || plan.stripePriceId.includes('PLACEHOLDER');
+      if (!missing) {
+        skipped.push({ id: plan.id, name: plan.name, stripePriceId: plan.stripePriceId });
+        continue;
+      }
+
+      try {
+        const stripePriceId = await stripeService.getOrCreatePriceForPlan(plan);
+        await database.updatePlan(plan.id, { stripePriceId });
+        updated.push({ id: plan.id, name: plan.name, stripePriceId });
+      } catch (err) {
+        failed.push({ id: plan.id, name: plan.name, error: err.message });
+      }
+    }
+
+    reply.send({ updated, skipped, failed });
+  });
+
   fastify.post('/', { preHandler: fastify.requireAdmin }, async (request, reply) => {
     const plan = await database.createPlan(request.body);
 
