@@ -96,7 +96,12 @@ class DatabaseService {
       cpuCores: row.cpu_cores !== undefined && row.cpu_cores !== null ? parseInt(row.cpu_cores) : undefined,
       ramMb: row.ram_mb !== undefined && row.ram_mb !== null ? parseInt(row.ram_mb) : undefined,
       diskGb: row.disk_gb !== undefined && row.disk_gb !== null ? parseInt(row.disk_gb) : undefined,
-      priceMonthly: row.price_monthly !== undefined && row.price_monthly !== null ? parseFloat(row.price_monthly) : undefined
+      priceMonthly: row.price_monthly !== undefined && row.price_monthly !== null ? parseFloat(row.price_monthly) : undefined,
+      vmName: row.vm_name || null,
+      vmVmid: row.vm_vmid ? parseInt(row.vm_vmid) : null,
+      vmIpAddress: row.vm_ip_address || null,
+      vmOsTemplate: row.vm_os_template || null,
+      vmStatus: row.vm_status || null,
     };
   }
 
@@ -330,8 +335,12 @@ class DatabaseService {
 
   async getSubscriptionsByUserId(userId) {
     const { rows } = await pool.query(
-      `SELECT s.*, p.name as plan_name, p.vm_type, p.cpu_cores, p.ram_mb, p.disk_gb, p.price_monthly
-       FROM subscriptions s JOIN plans p ON p.id = s.plan_id
+      `SELECT s.*, p.name as plan_name, p.vm_type, p.cpu_cores, p.ram_mb, p.disk_gb, p.price_monthly,
+              vm.name as vm_name, vm.vmid as vm_vmid, vm.status as vm_status,
+              vm.ip_address as vm_ip_address, vm.os_template as vm_os_template
+       FROM subscriptions s
+       JOIN plans p ON p.id = s.plan_id
+       LEFT JOIN virtual_machines vm ON vm.id = s.vm_id AND vm.deleted_at IS NULL
        WHERE s.user_id = $1 ORDER BY s.created_at DESC`,
       [userId]
     );
