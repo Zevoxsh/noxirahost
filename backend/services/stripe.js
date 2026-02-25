@@ -241,8 +241,17 @@ class StripeService {
       ? await database.getSubscriptionByStripeId(invoice.subscription)
       : null;
 
+    const user = dbSub?.user_id
+      ? { id: dbSub.user_id }
+      : (invoice.customer ? await database.getUserByStripeCustomerId(invoice.customer) : null);
+
+    if (!user?.id) {
+      console.warn('[Stripe] Invoice paid with no matching user, skipping', invoice.id);
+      return;
+    }
+
     await database.upsertInvoice({
-      userId: dbSub?.user_id || null,
+      userId: user.id,
       subscriptionId: dbSub?.id || null,
       stripeInvoiceId: invoice.id,
       amountPaid: (invoice.amount_paid || 0) / 100,
@@ -266,11 +275,15 @@ class StripeService {
       ? await database.getSubscriptionByStripeId(invoice.subscription)
       : null;
 
-    if (!dbSub) return;
+    const user = dbSub?.user_id
+      ? { id: dbSub.user_id }
+      : (invoice.customer ? await database.getUserByStripeCustomerId(invoice.customer) : null);
+
+    if (!user?.id) return;
 
     await database.upsertInvoice({
-      userId: dbSub.user_id,
-      subscriptionId: dbSub.id,
+      userId: user.id,
+      subscriptionId: dbSub?.id || null,
       stripeInvoiceId: invoice.id,
       amountPaid: 0,
       currency: invoice.currency,

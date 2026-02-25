@@ -16,6 +16,11 @@ class DatabaseService {
     return rows[0] || null;
   }
 
+  async getUserByStripeCustomerId(stripeCustomerId) {
+    const { rows } = await pool.query('SELECT * FROM users WHERE stripe_customer_id = $1', [stripeCustomerId]);
+    return rows[0] || null;
+  }
+
   async createUser({ username, displayName, email, role, passwordHash }) {
     const { rows } = await pool.query(
       `INSERT INTO users (username, display_name, email, role, password_hash)
