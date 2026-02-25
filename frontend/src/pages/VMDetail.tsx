@@ -29,8 +29,12 @@ export default function VMDetail() {
 
   const load = useCallback(async () => {
     try {
-      const [vmRes, statusRes, snapRes] = await Promise.all([
-        vmAPI.get(vmId), vmAPI.getStatus(vmId), vmAPI.listSnapshots(vmId)
+      const vmRes = await vmAPI.get(vmId);
+      const vmData = vmRes.data.vm;
+      const vmType = (vmData as any)?.vmType ?? (vmData as any)?.vm_type ?? 'kvm';
+      const [statusRes, snapRes] = await Promise.all([
+        vmAPI.getStatus(vmId),
+        vmType === 'kvm' ? vmAPI.listSnapshots(vmId) : Promise.resolve({ data: { snapshots: [] } })
       ]);
       setVm(vmRes.data.vm);
       setLive(statusRes.data);
