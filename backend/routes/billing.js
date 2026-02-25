@@ -27,16 +27,9 @@ export async function billingRoutes(fastify) {
     const plan = await database.getPlanById(parseInt(planId));
     if (!plan || !plan.isActive) return reply.code(404).send({ error: 'Plan not found or inactive' });
 
-    // Auto-créer le prix Stripe si absent
-    let stripePriceId = plan.stripePriceId;
+    const stripePriceId = plan.stripePriceId;
     if (!stripePriceId || stripePriceId.includes('PLACEHOLDER')) {
-      try {
-        stripePriceId = await stripeService.getOrCreatePriceForPlan(plan);
-        await database.updatePlan(plan.id, { stripePriceId });
-      } catch (err) {
-        fastify.log.error({ err }, 'Failed to auto-create Stripe price');
-        return reply.code(500).send({ error: 'Paiement non configuré', message: err.message });
-      }
+      return reply.code(500).send({ error: 'Prix Stripe non configuré', message: 'Contactez un administrateur.' });
     }
 
     const user = await database.getUserById(request.user.id);
