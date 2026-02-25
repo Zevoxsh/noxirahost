@@ -16,7 +16,7 @@ export default function Console() {
     const connect = async () => {
       try {
         const res = await vmAPI.getConsoleToken(Number(id));
-        const { wsToken } = res.data;
+        const { wsToken, vncTicket } = res.data;
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const wsUrl = `${wsProtocol}://${window.location.host}/ws/console?token=${wsToken}`;
@@ -43,7 +43,7 @@ export default function Console() {
           }
         });
         rfb.addEventListener('credentialsrequired', () => {
-          rfb.sendCredentials({ password: '' });
+          rfb.sendCredentials({ password: vncTicket || '' });
         });
       } catch (err: any) {
         setStatus('error');

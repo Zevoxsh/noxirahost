@@ -153,7 +153,7 @@ export async function vmRoutes(fastify) {
         wsAuthHeaders
       }, 60);
 
-      reply.send({ wsToken, vmName: vm.name });
+      reply.send({ wsToken, vncTicket: vncData.ticket, vmName: vm.name });
     } catch (error) {
       reply.code(500).send({ error: 'Console unavailable', message: error.message });
     }
