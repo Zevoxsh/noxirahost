@@ -172,6 +172,10 @@ class StripeService {
     await database.markStripeEventProcessed(event.id, event.type);
   }
 
+  _toDate(ts) {
+    return (typeof ts === 'number' && Number.isFinite(ts)) ? new Date(ts * 1000) : null;
+  }
+
   async _handleCheckoutComplete(session) {
     const { userId, planId, vmType, vmName, osTemplate } = session.metadata || {};
     if (!userId || !planId) return;
@@ -212,8 +216,8 @@ class StripeService {
       stripeSubscriptionId: stripeSubscription.id,
       stripeCustomerId: session.customer,
       status: stripeSubscription.status,
-      currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000)
+      currentPeriodStart: this._toDate(stripeSubscription.current_period_start),
+      currentPeriodEnd: this._toDate(stripeSubscription.current_period_end)
     });
   }
 
@@ -258,8 +262,8 @@ class StripeService {
       stripeSubscriptionId: subscription.id,
       stripeCustomerId: subscription.customer,
       status: subscription.status,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000)
+      currentPeriodStart: this._toDate(subscription.current_period_start),
+      currentPeriodEnd: this._toDate(subscription.current_period_end)
     });
   }
 
@@ -269,8 +273,8 @@ class StripeService {
 
     await database.updateSubscription(dbSub.id, {
       status: subscription.status,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      currentPeriodStart: this._toDate(subscription.current_period_start),
+      currentPeriodEnd: this._toDate(subscription.current_period_end),
       cancelAtPeriodEnd: subscription.cancel_at_period_end
     });
   }
@@ -311,8 +315,8 @@ class StripeService {
       status: 'paid',
       hostedInvoiceUrl: invoice.hosted_invoice_url,
       invoicePdfUrl: invoice.invoice_pdf,
-      periodStart: invoice.period_start ? new Date(invoice.period_start * 1000) : null,
-      periodEnd: invoice.period_end ? new Date(invoice.period_end * 1000) : null
+      periodStart: this._toDate(invoice.period_start),
+      periodEnd: this._toDate(invoice.period_end)
     });
 
     // Reprendre la VM si elle était suspendue
