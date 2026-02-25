@@ -83,6 +83,7 @@ export default function VMDetail() {
 
   const cpuPct = live?.cpu ? Math.round(live.cpu * 100) : 0;
   const ramPct = live?.mem && live?.maxmem ? Math.round((live.mem / live.maxmem) * 100) : 0;
+  const vmType = (vm as any).vmType ?? (vm as any).vm_type ?? 'kvm';
 
   return (
     <div className="page-container max-w-4xl">
@@ -103,8 +104,8 @@ export default function VMDetail() {
                 <h1 className="text-xl font-bold text-slate-900">{vm.name}</h1>
                 <div className="flex items-center gap-3 mt-1">
                   <StatusBadge status={acting ? 'provisioning' : vm.status} />
-                  <span className={`badge border ${vm.vmType === 'kvm' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
-                    {vm.vmType.toUpperCase()}
+                  <span className={`badge border ${vmType === 'kvm' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
+                    {String(vmType).toUpperCase()}
                   </span>
                   <span className="text-xs text-slate-400 font-mono">VMID {vm.vmid}</span>
                 </div>

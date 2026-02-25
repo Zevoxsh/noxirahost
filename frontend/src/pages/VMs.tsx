@@ -71,7 +71,9 @@ export default function VMs() {
               </tr>
             </thead>
             <tbody>
-              {vms.map(vm => (
+              {vms.map(vm => {
+                const vmType = (vm as any).vmType ?? (vm as any).vm_type ?? 'kvm';
+                return (
                 <tr key={vm.id} className="table-row">
                   <td className="table-cell">
                     <Link to={`/vms/${vm.id}`} className="font-semibold text-slate-900 hover:text-brand-600 transition-colors">
@@ -80,8 +82,8 @@ export default function VMs() {
                     <div className="text-xs text-slate-400 font-mono">VMID {vm.vmid}</div>
                   </td>
                   <td className="table-cell">
-                    <span className={`badge border ${vm.vmType === 'kvm' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
-                      {vm.vmType.toUpperCase()}
+                    <span className={`badge border ${vmType === 'kvm' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
+                      {String(vmType).toUpperCase()}
                     </span>
                   </td>
                   <td className="table-cell">
@@ -123,7 +125,8 @@ export default function VMs() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
