@@ -16,6 +16,9 @@ class VmProvisioner {
    * @param {string} options.osTemplate - volid ISO ou template LXC
    */
   async create({ userId, plan, node, name, osTemplate }) {
+    if (plan.vmType === 'lxc' && !osTemplate) {
+      throw new Error('LXC template is required for provisioning');
+    }
     // Générer le prochain VMID disponible
     const vmid = await database.getNextVmid(node.id);
     const hostname = name.toLowerCase().replace(/[^a-z0-9-]/g, '-');

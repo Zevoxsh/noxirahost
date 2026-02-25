@@ -26,6 +26,9 @@ export async function billingRoutes(fastify) {
 
     const plan = await database.getPlanById(parseInt(planId));
     if (!plan || !plan.isActive) return reply.code(404).send({ error: 'Plan not found or inactive' });
+    if (plan.vmType === 'lxc' && !osTemplate) {
+      return reply.code(400).send({ error: 'osTemplate is required for LXC plans' });
+    }
 
     const stripePriceId = plan.stripePriceId;
     if (!stripePriceId || stripePriceId.includes('PLACEHOLDER')) {

@@ -182,6 +182,15 @@ class StripeService {
 
     const stripe = this.getClient();
     const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription);
+    const existingSub = await database.getSubscriptionByStripeId(stripeSubscription.id);
+    if (existingSub) {
+      await database.updateSubscription(existingSub.id, {
+        status: stripeSubscription.status,
+        currentPeriodStart: this._toDate(stripeSubscription.current_period_start),
+        currentPeriodEnd: this._toDate(stripeSubscription.current_period_end)
+      });
+      return;
+    }
     const plan = await database.getPlanById(parseInt(planId));
     const user = await database.getUserById(parseInt(userId));
     if (!plan || !user) return;
@@ -205,7 +214,8 @@ class StripeService {
         osTemplate: osTemplate || ''
       });
     } catch (error) {
-      console.error('[Stripe] VM provisioning failed:', error.message);
+      const details = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
+      console.error('[Stripe] VM provisioning failed:', details);
     }
 
     // Créer l'abonnement en DB
@@ -252,7 +262,8 @@ class StripeService {
         osTemplate: osTemplate || ''
       });
     } catch (error) {
-      console.error('[Stripe] VM provisioning failed:', error.message);
+      const details = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
+      console.error('[Stripe] VM provisioning failed:', details);
     }
 
     await database.createSubscription({

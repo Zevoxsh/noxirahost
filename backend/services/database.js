@@ -278,11 +278,15 @@ class DatabaseService {
     const { rows } = await pool.query(
       `INSERT INTO subscriptions
         (user_id, vm_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (stripe_subscription_id) DO NOTHING
+       RETURNING *`,
       [data.userId, data.vmId || null, data.planId, data.stripeSubscriptionId,
        data.stripeCustomerId, data.status, data.currentPeriodStart, data.currentPeriodEnd]
     );
-    return rows[0];
+    if (rows[0]) return rows[0];
+    const existing = await this.getSubscriptionByStripeId(data.stripeSubscriptionId);
+    return existing;
   }
 
   async getSubscriptionByStripeId(stripeSubscriptionId) {
