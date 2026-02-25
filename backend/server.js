@@ -164,7 +164,7 @@ const start = async () => {
 
     // 5. Stripe price sync (async, non-blocking)
     setTimeout(async () => {
-      const timeoutMs = 8000;
+      const timeoutMs = parseInt(process.env.STRIPE_SYNC_TIMEOUT_MS || '30000', 10);
       const withTimeout = (p) => Promise.race([
         p,
         new Promise((_, reject) => setTimeout(() => reject(new Error('Stripe sync timeout')), timeoutMs))
