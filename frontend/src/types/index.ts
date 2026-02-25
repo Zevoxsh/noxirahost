@@ -108,6 +108,7 @@ export interface ProxmoxNode {
   storage: string;
   bridge: string;
   isActive: boolean;
+  vmidStart?: number;
   health?: {
     online: boolean;
     cpu?: number;

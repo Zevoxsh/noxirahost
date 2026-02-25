@@ -269,8 +269,15 @@ class DatabaseService {
       'SELECT MAX(vmid) as max_vmid FROM virtual_machines WHERE node_id = $1 AND deleted_at IS NULL',
       [nodeId]
     );
+    const { rows: nodeRows } = await pool.query(
+      'SELECT vmid_start FROM proxmox_nodes WHERE id = $1',
+      [nodeId]
+    );
     const currentMax = rows[0]?.max_vmid || 199;
-    return Math.max(currentMax + 1, parseInt(process.env.PROXMOX_VMID_START || '200', 10));
+    const nodeStart = nodeRows[0]?.vmid_start;
+    const globalStart = parseInt(process.env.PROXMOX_VMID_START || '200', 10);
+    const minStart = Number.isFinite(nodeStart) ? nodeStart : globalStart;
+    return Math.max(currentMax + 1, minStart);
   }
 
   // ─── Billing ────────────────────────────────────────────

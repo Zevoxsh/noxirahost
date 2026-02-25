@@ -3,8 +3,8 @@ import { Plus, Trash2, Edit2, X, CheckCircle, XCircle, RefreshCw, Database } fro
 import { adminAPI } from '../../api/client';
 import type { ProxmoxNode } from '../../types';
 
-interface NodeForm { name: string; host: string; port: string; pveUser: string; pvePassword: string; storage: string; bridge: string; }
-const EMPTY: NodeForm = { name: '', host: '', port: '8006', pveUser: 'root@pam', pvePassword: '', storage: 'local', bridge: 'vmbr0' };
+interface NodeForm { name: string; host: string; port: string; pveUser: string; pvePassword: string; storage: string; bridge: string; vmidStart: string; }
+const EMPTY: NodeForm = { name: '', host: '', port: '8006', pveUser: 'root@pam', pvePassword: '', storage: 'local', bridge: 'vmbr0', vmidStart: '' };
 
 export default function AdminNodes() {
   const [nodes, setNodes]     = useState<ProxmoxNode[]>([]);
@@ -26,7 +26,16 @@ export default function AdminNodes() {
   const openCreate = () => { setEditNode(null); setForm(EMPTY); setFormError(''); setShowForm(true); };
   const openEdit   = (n: ProxmoxNode) => {
     setEditNode(n);
-    setForm({ name: n.name, host: n.host, port: String(n.port || 8006), pveUser: (n as any).pve_user || 'root@pam', pvePassword: '', storage: n.storage || 'local', bridge: n.bridge || 'vmbr0' });
+    setForm({
+      name: n.name,
+      host: n.host,
+      port: String(n.port || 8006),
+      pveUser: (n as any).pve_user || 'root@pam',
+      pvePassword: '',
+      storage: n.storage || 'local',
+      bridge: n.bridge || 'vmbr0',
+      vmidStart: String((n as any).vmid_start ?? n.vmidStart ?? '')
+    });
     setFormError(''); setShowForm(true);
   };
 
@@ -37,9 +46,24 @@ export default function AdminNodes() {
     setSaving(true);
     try {
       if (editNode) {
-        await adminAPI.updateNode(editNode.id, { pve_user: form.pveUser, pve_password: form.pvePassword || undefined, storage: form.storage, bridge: form.bridge });
+        await adminAPI.updateNode(editNode.id, {
+          pve_user: form.pveUser,
+          pve_password: form.pvePassword || undefined,
+          storage: form.storage,
+          bridge: form.bridge,
+          vmid_start: form.vmidStart ? Number(form.vmidStart) : undefined
+        });
       } else {
-        await adminAPI.createNode({ name: form.name, host: form.host, port: Number(form.port) || 8006, pveUser: form.pveUser, pvePassword: form.pvePassword, storage: form.storage, bridge: form.bridge });
+        await adminAPI.createNode({
+          name: form.name,
+          host: form.host,
+          port: Number(form.port) || 8006,
+          pveUser: form.pveUser,
+          pvePassword: form.pvePassword,
+          storage: form.storage,
+          bridge: form.bridge,
+          vmidStart: form.vmidStart ? Number(form.vmidStart) : undefined
+        });
       }
       setShowForm(false); await load();
     } catch (err: any) { setFormError(err.response?.data?.message ?? 'Erreur.'); }
@@ -105,6 +129,7 @@ export default function AdminNodes() {
               </div>
               <div><label className="input-label">Stockage VMs</label><input className="input-field" placeholder="local / SAN1" {...f('storage')} /></div>
               <div><label className="input-label">Bridge réseau</label><input className="input-field" placeholder="vmbr0" {...f('bridge')} /></div>
+              <div><label className="input-label">VMID min</label><input className="input-field" placeholder="300" {...f('vmidStart')} /></div>
             </div>
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">Annuler</button>
@@ -137,7 +162,7 @@ export default function AdminNodes() {
                         {node.health?.online ? 'En ligne' : 'Hors ligne'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{node.host}:{node.port} · {node.storage} · {node.bridge}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{node.host}:{node.port} · {node.storage} · {node.bridge}{(node as any).vmid_start || node.vmidStart ? ` · VMID min ${(node as any).vmid_start ?? node.vmidStart}` : ''}</p>
                     {node.health?.online && (
                       <div className="flex items-center gap-5 mt-2">
                         {node.health.cpu !== undefined && (

@@ -1,0 +1,1 @@
+ALTER TABLE proxmox_nodes ADD COLUMN IF NOT EXISTS vmid_start INTEGER;
