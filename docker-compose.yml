@@ -17,6 +17,8 @@ services:
       - redis-data:/data
     networks:
       - nebula-net
+    ports:
+      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -35,7 +37,7 @@ services:
     network_mode: host
     environment:
       - NODE_ENV=production
-      - REDIS_HOST=nebula-hosting-redis
+      - REDIS_HOST=127.0.0.1
       - REDIS_PORT=6379
     env_file:
       - ./backend/.env
