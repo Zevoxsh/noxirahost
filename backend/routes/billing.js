@@ -21,8 +21,11 @@ export async function billingRoutes(fastify) {
 
   // POST /api/billing/checkout — créer une Stripe Checkout Session
   fastify.post('/checkout', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const { planId, vmName, osTemplate } = request.body || {};
+    const { planId, rootPassword, osTemplate } = request.body || {};
     if (!planId) return reply.code(400).send({ error: 'planId is required' });
+    if (!rootPassword || rootPassword.length < 8) {
+      return reply.code(400).send({ error: 'rootPassword is required (minimum 8 characters)' });
+    }
 
     const plan = await database.getPlanById(parseInt(planId));
     if (!plan || !plan.isActive) return reply.code(404).send({ error: 'Plan not found or inactive' });
@@ -38,7 +41,7 @@ export async function billingRoutes(fastify) {
     const user = await database.getUserById(request.user.id);
 
     try {
-      const session = await stripeService.createCheckoutSession({ user, plan, stripePriceId, vmName, osTemplate });
+      const session = await stripeService.createCheckoutSession({ user, plan, stripePriceId, rootPassword, osTemplate });
       reply.send({ url: session.url, sessionId: session.id });
     } catch (error) {
       fastify.log.error({ error }, 'Stripe checkout creation failed');

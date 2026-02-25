@@ -13,9 +13,10 @@ class VmProvisioner {
    * @param {object} options.plan - Ligne plans
    * @param {object} options.node - Ligne proxmox_nodes
    * @param {string} options.name - Nom de la VM
+   * @param {string} options.rootPassword - Mot de passe root
    * @param {string} options.osTemplate - volid ISO ou template LXC
    */
-  async create({ userId, plan, node, name, osTemplate }) {
+  async create({ userId, plan, node, name, rootPassword, osTemplate }) {
     if (plan.vmType === 'lxc' && !osTemplate) {
       throw new Error('LXC template is required for provisioning');
     }
@@ -67,12 +68,12 @@ class VmProvisioner {
       // Créer dans Proxmox
       if (plan.vmType === 'kvm') {
         const params = proxmoxService.buildVMCreateParams(
-          vmid, plan, osTemplate, name, node.storage, node.bridge
+          vmid, plan, osTemplate, name, node.storage, node.bridge, rootPassword
         );
         await proxmoxService.createVM(node, params);
       } else {
         const params = proxmoxService.buildContainerCreateParams(
-          vmid, plan, osTemplate, hostname, node.storage, node.bridge
+          vmid, plan, osTemplate, hostname, node.storage, node.bridge, rootPassword
         );
         await proxmoxService.createContainer(node, params);
       }

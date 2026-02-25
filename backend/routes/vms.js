@@ -148,7 +148,9 @@ export async function vmRoutes(fastify) {
         ticket: vncData.ticket,
         port: vncData.port,
         vmid: vm.vmid,
-        vmType: vm.vm_type
+        vmType: vm.vm_type,
+        pveTokenId: node.pve_token_id || null,
+        pveTokenSecret: node.pve_token_secret || null
       }, 60);
 
       reply.send({ wsToken, vmName: vm.name });

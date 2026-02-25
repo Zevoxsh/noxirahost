@@ -67,7 +67,7 @@ export const vmAPI = {
 export const billingAPI = {
   getPlans: () => api.get('/billing/plans'),
   getCurrent: () => api.get('/billing/current'),
-  createCheckout: (data: { planId: number; vmName?: string; osTemplate?: string }) =>
+  createCheckout: (data: { planId: number; rootPassword: string; osTemplate?: string }) =>
     api.post('/billing/checkout', data),
   createPortal: () => api.post('/billing/portal'),
   getInvoices: () => api.get('/billing/invoices')

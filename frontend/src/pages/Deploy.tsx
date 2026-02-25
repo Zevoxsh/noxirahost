@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Server, FileText, Disc } from 'lucide-react';
+import { ArrowLeft, Check, FileText, Disc, Eye, EyeOff } from 'lucide-react';
 import { billingAPI, isoAPI, templateAPI } from '../api/client';
 import type { Plan, ISO, LxcTemplate } from '../types';
 
@@ -14,12 +14,13 @@ export default function Deploy() {
   const [isos, setIsos]         = useState<ISO[]>([]);
   const [templates, setTemplates] = useState<LxcTemplate[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [vmType, setVmType]     = useState<'kvm' | 'lxc'>(urlType);
-  const [vmName, setVmName]     = useState('');
+  const [vmType, setVmType]       = useState<'kvm' | 'lxc'>(urlType);
+  const [rootPassword, setRootPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedOS, setSelectedOS] = useState('');
-  const [step, setStep]         = useState<1 | 2 | 3>(urlPlanId ? 2 : 1);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
+  const [step, setStep]           = useState<1 | 2 | 3>(urlPlanId ? 2 : 1);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -45,7 +46,7 @@ export default function Deploy() {
     if (!selectedPlan) return;
     setLoading(true); setError('');
     try {
-      const res = await billingAPI.createCheckout({ planId: selectedPlan.id, vmName: vmName.trim() || undefined, osTemplate: selectedOS || undefined });
+      const res = await billingAPI.createCheckout({ planId: selectedPlan.id, rootPassword, osTemplate: selectedOS || undefined });
       window.location.href = res.data.url;
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Erreur lors du paiement.');
@@ -143,10 +144,25 @@ export default function Deploy() {
               </div>
             )}
             <div>
-              <label className="input-label">Nom du serveur *</label>
-              <input className="input-field" placeholder="mon-serveur-01"
-                value={vmName} onChange={e => setVmName(e.target.value.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase())} autoFocus />
-              <p className="text-xs text-slate-400 mt-1">Lettres minuscules, chiffres et tirets uniquement</p>
+              <label className="input-label">Mot de passe root *</label>
+              <div className="relative">
+                <input
+                  className="input-field pr-10"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Minimum 8 caractères"
+                  value={rootPassword}
+                  onChange={e => setRootPassword(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Mot de passe du compte root de votre serveur</p>
             </div>
             <div>
               <label className="input-label">
@@ -171,7 +187,7 @@ export default function Deploy() {
             </div>
             <div className="flex gap-2 justify-end pt-2">
               {!urlPlanId && <button onClick={() => setStep(1)} className="btn-secondary">← Retour</button>}
-              <button onClick={() => { if (vmName.trim().length >= 2) setStep(3); }} disabled={vmName.trim().length < 2} className="btn-primary">
+              <button onClick={() => { if (rootPassword.length >= 8) setStep(3); }} disabled={rootPassword.length < 8} className="btn-primary">
                 Continuer →
               </button>
             </div>
@@ -185,13 +201,13 @@ export default function Deploy() {
             {error && <div className="alert-error mb-4">{error}</div>}
             <div className="border border-slate-200 rounded-xl overflow-hidden mb-5">
               {[
-                { label: 'Type',     value: vmType.toUpperCase() },
-                { label: 'Offre',    value: selectedPlan.name },
-                { label: 'CPU',      value: `${selectedPlan.cpuCores} vCPU` },
-                { label: 'RAM',      value: selectedPlan.ramMb >= 1024 ? `${selectedPlan.ramMb/1024} GB` : `${selectedPlan.ramMb} MB` },
-                { label: 'Disque',   value: `${selectedPlan.diskGb} GB SSD` },
-                { label: 'Nom',      value: vmName || '(auto-généré)' },
-                { label: 'OS',       value: selectedOS ? osOptions.find((o: any) => o.volid === selectedOS)?.filename || selectedOS : 'À configurer' },
+                { label: 'Type',         value: vmType.toUpperCase() },
+                { label: 'Offre',        value: selectedPlan.name },
+                { label: 'CPU',          value: `${selectedPlan.cpuCores} vCPU` },
+                { label: 'RAM',          value: selectedPlan.ramMb >= 1024 ? `${selectedPlan.ramMb/1024} GB` : `${selectedPlan.ramMb} MB` },
+                { label: 'Disque',       value: `${selectedPlan.diskGb} GB SSD` },
+                { label: 'Mot de passe', value: '●'.repeat(rootPassword.length) },
+                { label: 'OS',           value: selectedOS ? osOptions.find((o: any) => o.volid === selectedOS)?.filename || selectedOS : 'À configurer' },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center px-4 py-3 border-b border-slate-100 last:border-0 text-sm">
                   <span className="text-slate-500 w-24 flex-shrink-0">{label}</span>

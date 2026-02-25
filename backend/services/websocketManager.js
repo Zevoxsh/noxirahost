@@ -54,10 +54,13 @@ export class WebSocketManager {
 
     this.logger.info(`[WS] Opening noVNC relay to: ${nodeHost}:${nodePort}`);
 
-    const pveWs = new WebSocket(pveWsUrl, {
-      headers: {
-        Cookie: `PVEAuthCookie=${ticket}`
-      },
+    // Auth: API token si disponible, sinon PVEAuthCookie (ticket VNC)
+    const authHeaders = tokenData.pveTokenId && tokenData.pveTokenSecret
+      ? { Authorization: `PVEAPIToken=${tokenData.pveTokenId}=${tokenData.pveTokenSecret}` }
+      : { Cookie: `PVEAuthCookie=${ticket}` };
+
+    const pveWs = new WebSocket(pveWsUrl, ['binary'], {
+      headers: authHeaders,
       rejectUnauthorized: false // Proxmox peut avoir un certificat self-signed
     });
 
@@ -66,16 +69,16 @@ export class WebSocketManager {
     });
 
     // Relay: PVE → Browser
-    pveWs.on('message', (data) => {
+    pveWs.on('message', (data, isBinary) => {
       if (clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(data);
+        clientWs.send(data, { binary: isBinary });
       }
     });
 
     // Relay: Browser → PVE
-    clientWs.on('message', (data) => {
+    clientWs.on('message', (data, isBinary) => {
       if (pveWs.readyState === WebSocket.OPEN) {
-        pveWs.send(data);
+        pveWs.send(data, { binary: isBinary });
       }
     });
 

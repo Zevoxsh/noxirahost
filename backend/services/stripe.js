@@ -67,14 +67,14 @@ class StripeService {
   /**
    * Créer une Stripe Checkout Session pour souscrire un plan
    */
-  async createCheckoutSession({ user, plan, stripePriceId, vmName, osTemplate }) {
+  async createCheckoutSession({ user, plan, stripePriceId, rootPassword, osTemplate }) {
     const stripe = this.getClient();
     const customerId = await this.getOrCreateCustomer(user);
     const metadata = {
       userId: String(user.id),
       planId: String(plan.id),
       vmType: plan.vmType,
-      vmName: vmName || `${plan.name} Server`,
+      rootPassword: rootPassword || '',
       osTemplate: osTemplate || ''
     };
 
@@ -177,7 +177,7 @@ class StripeService {
   }
 
   async _handleCheckoutComplete(session) {
-    const { userId, planId, vmType, vmName, osTemplate } = session.metadata || {};
+    const { userId, planId, vmType, rootPassword, osTemplate } = session.metadata || {};
     if (!userId || !planId) {
       console.error('[Stripe] Checkout completed without required metadata', {
         sessionId: session.id,
@@ -218,7 +218,8 @@ class StripeService {
         userId: user.id,
         plan,
         node,
-        name: vmName || `${plan.name.replace(/\s/g, '-')}-${user.id}`,
+        name: `${plan.name.replace(/\s/g, '-').toLowerCase()}-${user.id}`,
+        rootPassword: rootPassword || '',
         osTemplate: osTemplate || ''
       });
     } catch (error) {

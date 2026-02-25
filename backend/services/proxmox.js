@@ -242,8 +242,8 @@ class ProxmoxService {
   }
 
   // ─── Paramètres de création ─────────────────────────────
-  buildVMCreateParams(vmid, plan, isoVolid, name, storage, bridge) {
-    return {
+  buildVMCreateParams(vmid, plan, isoVolid, name, storage, bridge, rootPassword) {
+    const params = {
       vmid, name,
       memory: plan.ramMb,
       cores: plan.cpuCores,
@@ -255,10 +255,12 @@ class ProxmoxService {
       ostype: 'l26',
       onboot: 1
     };
+    if (rootPassword) params.cipassword = rootPassword;
+    return params;
   }
 
-  buildContainerCreateParams(vmid, plan, templateVolid, hostname, storage, bridge) {
-    return {
+  buildContainerCreateParams(vmid, plan, templateVolid, hostname, storage, bridge, rootPassword) {
+    const params = {
       vmid, hostname,
       ostemplate: templateVolid,
       memory: plan.ramMb,
@@ -269,6 +271,8 @@ class ProxmoxService {
       unprivileged: 1,
       start: 0
     };
+    if (rootPassword) params.password = rootPassword;
+    return params;
   }
 }
 
