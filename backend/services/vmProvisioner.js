@@ -24,7 +24,6 @@ class VmProvisioner {
     const minStart = Number.isFinite(node.vmid_start) ? node.vmid_start : globalStart;
 
     // Générer le prochain VMID disponible côté Proxmox (retry en cas de course)
-    const hostname = name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
     let dbVm = null;
     let vmid = null;
     let usedVmids = null;
@@ -42,6 +41,9 @@ class VmProvisioner {
         vmid += 1;
         continue;
       }
+      // Le VMID est inclus dans le nom pour garantir l'unicité (même plan, même user)
+      const finalName = `${name}-${vmid}`;
+      const hostname = finalName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
       try {
         dbVm = await database.createVM({
           userId,
@@ -49,7 +51,7 @@ class VmProvisioner {
           planId: plan.id,
           vmid,
           vmType: plan.vmType,
-          name,
+          name: finalName,
           hostname,
           osTemplate,
           cpuCores: plan.cpuCores,
