@@ -73,6 +73,28 @@ class DatabaseService {
     };
   }
 
+  _formatSubscription(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      userId: row.user_id,
+      vmId: row.vm_id,
+      planId: row.plan_id,
+      stripeSubscriptionId: row.stripe_subscription_id,
+      stripeCustomerId: row.stripe_customer_id,
+      status: row.status,
+      currentPeriodStart: row.current_period_start,
+      currentPeriodEnd: row.current_period_end,
+      cancelAtPeriodEnd: row.cancel_at_period_end,
+      planName: row.plan_name,
+      vmType: row.vm_type,
+      cpuCores: row.cpu_cores !== undefined && row.cpu_cores !== null ? parseInt(row.cpu_cores) : undefined,
+      ramMb: row.ram_mb !== undefined && row.ram_mb !== null ? parseInt(row.ram_mb) : undefined,
+      diskGb: row.disk_gb !== undefined && row.disk_gb !== null ? parseInt(row.disk_gb) : undefined,
+      priceMonthly: row.price_monthly !== undefined && row.price_monthly !== null ? parseFloat(row.price_monthly) : undefined
+    };
+  }
+
   async getActivePlans() {
     const { rows } = await pool.query('SELECT * FROM plans WHERE is_active = TRUE ORDER BY vm_type, price_monthly');
     return rows.map(r => this._formatPlan(r));
@@ -272,7 +294,7 @@ class DatabaseService {
        WHERE s.user_id = $1 ORDER BY s.created_at DESC`,
       [userId]
     );
-    return rows;
+    return rows.map(r => this._formatSubscription(r));
   }
 
   async updateSubscription(id, fields) {
